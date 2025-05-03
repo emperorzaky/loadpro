@@ -1,5 +1,9 @@
 # LOADPRO - Load Prediction Optimization
 
+![Python](https://img.shields.io/badge/Python-3.10-blue)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16.1-orange)
+![Status](https://img.shields.io/badge/Status-Private-inactive)
+
 **LOADPRO** adalah sebuah AI yang sedang dikembangkan untuk melakukan prediksi beban puncak listrik harian berbasis RNN-LSTM, dengan tuning hyperparameter yang dioptimalkan menggunakan Particle Swarm Optimization (PSO). Tujuannya adalah untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat di-*scale-up* ke seluruh sistem distribusi PLN.
 
 ---
