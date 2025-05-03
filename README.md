@@ -1,6 +1,6 @@
 # LOADPRO - Load Prediction Optimization
 
-**LOADPRO** adalah platform prediksi beban listrik berbasis RNN-LSTM yang dikembangkan untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat diskalakan.
+**LOADPRO** adalah sebuah AI yang sedang dikembangkan untuk melakukan prediksi beban puncak listrik harian berbasis RNN-LSTM dengan tuning yang dioptimalkan menggunakan Particle Swarm Optimization untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat di_scale-up_.
 
 ---
 
