@@ -52,5 +52,5 @@ Tanggal,Waktu,Beban
 
 ## 📂 File Terkait
 
-- `data/template/feeder_template.csv` – Template standar input penyulang
+- `data/template/penyulang_template.csv` – Template standar input penyulang
 - `data/raw/` – Tempat file input sebenarnya disimpan
