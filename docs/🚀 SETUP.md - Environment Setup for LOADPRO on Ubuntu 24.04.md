@@ -13,7 +13,7 @@ sudo apt install -y build-essential git curl wget unzip nano \\
   libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \\
   libncursesw5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
 
-## 🐍 2. Python Setup with pyenv
+🐍 2. Python Setup with pyenv
 
 Always show details
 
