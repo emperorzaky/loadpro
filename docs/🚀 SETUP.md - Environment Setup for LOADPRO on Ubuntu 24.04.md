@@ -121,24 +121,6 @@ gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 
 gsettings set org.gnome.desktop.session idle-delay 0
 gsettings set org.gnome.desktop.screensaver lock-enabled false
 
-🧪 8. Benchmarking (Opsional)
-
-Always show details
-
-python benchmark.py --default
-
-🧠 Status Akhir (Checklist)
-
-    ✅ TensorFlow 2.15.0 mendeteksi GPU
-
-    ✅ CUDA 12.2 dan cuDNN 8.9.7 aktif
-
-    ✅ Virtual environment stabil
-
-    ✅ Tidak ada error driver / boot
-
-    ✅ LOADPRO siap training berat
-
 💾 Tambahan: Ubah Swap Memory Jadi 16GB
 
 Always show details
