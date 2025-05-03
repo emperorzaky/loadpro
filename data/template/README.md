@@ -15,7 +15,7 @@ Template ini digunakan sebagai acuan bagi tim input/manual agar data yang dimasu
 File template biasanya bernama:
 
 ```
-feeder_template.csv
+penyulang_aragog.csv
 ```
 
 Dengan isi sebagai berikut:
