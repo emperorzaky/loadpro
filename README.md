@@ -1,38 +1,82 @@
-Perfect, Aibou! Langkah berikut tinggal eksekusi teknis:
+# LOADPRO - Load Prediction Optimization
+
+**LOADPRO** adalah platform prediksi beban listrik berbasis RNN-LSTM yang dikembangkan untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat diskalakan.
 
 ---
 
-## ✅ Cara Pasang `README.md` di Root Folder
+## 📚 Deskripsi
 
-1. **Buka terminal di folder `~/loadpro`**, lalu jalankan:
-
-```bash
-nano README.md
-```
-
-2. **Paste isi `README.md`** yang sudah kuberikan tadi ke dalam editor.
-
-3. **Simpan:**
-
-   * Tekan `CTRL + O` → Enter
-   * Lalu `CTRL + X` untuk keluar
-
-4. **Commit dan push ke GitHub:**
-
-```bash
-git add README.md
-git commit -m "Add main README.md for project overview"
-git push
-```
+- Prediksi beban harian per penyulang menggunakan deep learning (RNN-LSTM).
+- Hyperparameter tuning awal menggunakan Particle Swarm Optimization (PSO).
+- Fleksibel untuk pengembangan metode tuning lain seperti Random Search, Bayesian Optimization, dan Genetic Algorithm.
+- Output utama berupa model terbaik dan hasil prediksi per feeder.
 
 ---
 
-Setelah itu, kunjungi repo kamu di GitHub:
+## 🧠 Fitur Utama
 
-```
-https://github.com/emperorzaky/loadpro
-```
+- ✅ Preprocessing data siang/malam terpisah
+- ✅ Tuning PSO berbasis resume (checkpoint log)
+- ✅ Skema 2 tahap (eksplorasi → eksploitasi lokal)
+- ✅ Evaluasi multi-metrik (MAPE, RMSE, MAE)
+- ✅ Struktur modular dan dokumentasi lengkap
 
-📌 Halaman utama akan langsung menampilkan `README.md` tersebut secara profesional.
+---
 
-Siap lanjut ke pengembangan PSO dua tahap sekarang?
+## ⚙️ Instalasi
+
+Pastikan environment Python 3.8+ sudah aktif dan `venv` sudah di-setup:
+
+```bash
+pip install -r requirements.txt
+
+🚀 Eksekusi Pipeline
+
+# Preprocessing data .csv
+python scripts/preprocess.py
+
+# Tuning hyperparameter (PSO)
+python scripts/tuning.py
+
+# Prediksi final menggunakan model terbaik
+python scripts/predict.py
+
+🗂️ Struktur Folder
+
+loadpro/
+├── dashboard/       # UI/Backend untuk visualisasi beban
+├── data/            # Data input dan hasil preprocessing
+├── docs/            # Dokumentasi teknis dan catatan internal
+├── input/           # File parameter, konfigurasi, dan input manual
+├── logs/            # Log proses training, tuning, dan prediksi
+├── models/          # File model LSTM hasil tuning
+├── results/         # Hasil prediksi, evaluasi, grafik
+├── scripts/         # Pipeline utama preprocessing, tuning, dll.
+└── README.md        # Dokumentasi utama proyek
+
+🧪 Status Perkembangan
+
+Preprocessing pipeline
+
+Tuning PSO
+
+Evaluasi dan logging
+
+Struktur multi-feeder
+
+Manuver otomatis antar penyulang
+
+Dashboard Streamlit full deployment
+
+    Rilis public version (tanpa data PLN)
+
+👤 Author
+
+    Zaky Emperorz
+    Team Leader Engineering - PLN UP3 Mojokerto
+    Email: zakypradikto@gmail.com
+    GitHub: github.com/emperorzaky
+
+📄 Lisensi
+
+Proyek ini bersifat private. Tidak diperkenankan distribusi ulang tanpa izin tertulis.
