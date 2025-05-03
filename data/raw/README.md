@@ -1,12 +1,12 @@
 # data/raw/
 
-Folder ini menyimpan data mentah hasil ekspor dari SCADA, AMR, atau sumber eksternal lainnya.
+Folder ini menyimpan data mentah hasil ekspor dari SCADA, AMR, atau sumber eksternal lainnya. (dalam case ini data berasal dari optel)
 
 ---
 
 ## 📋 Format File
 
-Setiap file mewakili satu penyulang dan berisi data harian beban transformator.
+Setiap file mewakili satu penyulang dan berisi data harian beban puncak, siang pukul 10:00 dan malam pukul 19:00.
 
 **Nama file:**
 ```
@@ -15,8 +15,8 @@ penyulang_nama.csv
 
 **Contoh:**
 ```
-penyulang_bancang.csv
-penyulang_sengon.csv
+penyulang_leonidas.csv
+penyulang_aragog.csv
 ```
 
 ---
@@ -39,7 +39,7 @@ penyulang_sengon.csv
 |--------|--------------|---------------------------------------------------|
 | A: `Tanggal` | `MM/DD/YYYY` | Tanggal pencatatan beban                     |
 | B: `Waktu`   | `Siang` / `Malam` | Pembagian waktu pengukuran (shift harian) |
-| C: `Beban`   | `float` (kW)   | Nilai beban aktual dari penyulang           |
+| C: `Beban`   | `float` (A)   | Nilai beban aktual dari penyulang           |
 
 ---
 
@@ -51,7 +51,7 @@ Folder ini digunakan oleh script:
 python scripts/preprocess.py
 ```
 
-Script akan membaca seluruh file `.csv` di folder ini dan menghasilkan output ke `data/processed/split/`.
+Script preprocess.py akan membaca seluruh file `.csv` di folder ini dan menghasilkan output ke `data/processed/split/`.
 
 ---
 
@@ -61,4 +61,4 @@ Script akan membaca seluruh file `.csv` di folder ini dan menghasilkan output ke
 - Format tanggal wajib menggunakan format **MM/DD/YYYY** (bukan DD/MM/YYYY).
 - Nama file tidak boleh mengandung spasi.
 - Jangan tambahkan file selain `.csv` ke folder ini.
-- File template tersedia di `data/template/feeder_template.csv` (jika ada).
+- File template tersedia di `data/template/feeder_template.csv`.
