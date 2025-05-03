@@ -54,25 +54,9 @@ loadpro/
 ├── scripts/         # Pipeline utama preprocessing, tuning, dll.
 └── README.md        # Dokumentasi utama proyek
 
-🧪 Status Perkembangan
-
-Preprocessing pipeline
-
-Tuning PSO
-
-Evaluasi dan logging
-
-Struktur multi-feeder
-
-Manuver otomatis antar penyulang
-
-Dashboard Streamlit full deployment
-
-    Rilis public version (tanpa data PLN)
-
 👤 Author
 
-    Zaky Emperorz
+    Zaky Pradikto
     Team Leader Engineering - PLN UP3 Mojokerto
     Email: zakypradikto@gmail.com
     GitHub: github.com/emperorzaky
