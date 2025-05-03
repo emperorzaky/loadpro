@@ -1,33 +1,69 @@
 # LOADPRO - Load Prediction Optimization
 
-**LOADPRO** adalah sebuah AI yang sedang dikembangkan untuk melakukan prediksi beban puncak listrik harian berbasis RNN-LSTM, dengan tuning yang dioptimalkan menggunakan Particle Swarm Optimization (PSO). Tujuannya adalah untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat di-*scale-up* ke seluruh sistem distribusi.
+**LOADPRO** adalah sebuah AI yang sedang dikembangkan untuk melakukan prediksi beban puncak listrik harian berbasis RNN-LSTM, dengan tuning hyperparameter yang dioptimalkan menggunakan Particle Swarm Optimization (PSO). Tujuannya adalah untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat di-*scale-up* ke seluruh sistem distribusi PLN.
 
 ---
 
 ## 📚 Deskripsi
 
 - Prediksi beban harian per penyulang menggunakan deep learning (RNN-LSTM).
-- Hyperparameter tuning awal menggunakan Particle Swarm Optimization (PSO).
-- Fleksibel untuk pengembangan metode tuning lain seperti Random Search, Bayesian Optimization, dan Genetic Algorithm.
-- Output utama berupa model terbaik dan hasil prediksi per feeder.
+- Hyperparameter tuning menggunakan Particle Swarm Optimization (PSO).
+- Mendukung metode tuning lain seperti Random Search, Bayesian Optimization, Genetic Algorithm.
+- Output utama: model terbaik + hasil prediksi harian per feeder.
 
 ---
 
-## 🧠 Fitur Utama
+## 🧩 Spesifikasi Sistem
 
-- ✅ Preprocessing data siang/malam terpisah
-- ✅ Tuning PSO berbasis resume (checkpoint log)
-- ❌ Skema 2 tahap (eksplorasi → eksploitasi lokal) *sedang dalam tahap pengembangan di lokal*
-- ✅ Evaluasi multi-metrik (MAPE, RMSE, MAE)
-- ✅ Struktur modular dan dokumentasi lengkap
+LOADPRO dikembangkan dan diuji pada environment berikut:
+
+| Komponen               | Versi / Spesifikasi                  |
+|------------------------|--------------------------------------|
+| OS                     | Ubuntu 24.04 LTS                     |
+| Python                 | 3.10                                 |
+| CUDA Toolkit           | 12.2                                 |
+| cuDNN                  | 8.9                                  |
+| GPU Support            | NVIDIA GTX 1660 Ti (6GB)             |
+| RAM Minimum            | 16 GB                                |
+| Swap Memory Disarankan | 16 GB                                |
+| Virtual Environment    | `venv` (Python built-in)             |
+
+> Untuk menggunakan GPU, pastikan driver NVIDIA dan versi CUDA/cuDNN sesuai dengan TensorFlow dan Keras yang digunakan.
+
+---
+
+## 📦 Python Package Requirements
+
+Daftar library Python utama (dan versi rekomendasi):
+
+| Library          | Versi     |
+|------------------|-----------|
+| TensorFlow       | 2.16.1    |
+| Keras            | 3.2.1     |
+| Pandas           | 2.2.2     |
+| NumPy            | 1.26.4    |
+| Scikit-Learn     | 1.4.2     |
+| Matplotlib       | 3.10.1    |
+| tqdm             | 4.66.4    |
+| joblib           | 1.4.2     |
+| namex (custom)   | 0.0.7     |
+
+> Semua dependensi tersedia di `requirements.txt`.
 
 ---
 
 ## ⚙️ Instalasi
 
-Pastikan environment Python 3.8+ sudah aktif dan `venv` telah disiapkan:
-
 ```bash
+# Clone repo
+git clone https://github.com/emperorzaky/loadpro.git
+cd loadpro
+
+# Aktifkan virtualenv
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 
 🚀 Eksekusi Pipeline
@@ -41,6 +77,18 @@ python scripts/tuning.py
 # Prediksi final menggunakan model terbaik
 python scripts/predict.py
 
+🧠 Fitur Utama
+
+    ✅ Preprocessing data siang/malam terpisah
+
+    ✅ Tuning PSO dengan fitur resume log
+
+    ❌ Skema 2 tahap (eksplorasi → eksploitasi lokal) sedang dikembangkan
+
+    ✅ Evaluasi akurasi multi-metrik (MAPE, RMSE, MAE)
+
+    ✅ Struktur kode modular & terdokumentasi
+
 🗂️ Struktur Folder
 
 loadpro/
@@ -51,8 +99,24 @@ loadpro/
 ├── logs/            # Log proses training, tuning, dan prediksi
 ├── models/          # File model LSTM hasil tuning
 ├── results/         # Hasil prediksi, evaluasi, grafik
-├── scripts/         # Pipeline utama preprocessing, tuning, dll.
+├── scripts/         # Pipeline utama: preprocess, tuning, prediksi
 └── README.md        # Dokumentasi utama proyek
+
+📌 Status Perkembangan
+
+Preprocessing pipeline
+
+PSO hyperparameter tuning
+
+Model evaluation & log tracking
+
+Struktur multi-feeder siap pakai
+
+Two-stage PSO (eksplorasi → eksploitasi)
+
+Dashboard Streamlit deployment
+
+    Public version sanitasi & rilis terbuka
 
 👤 Author
 
@@ -62,5 +126,4 @@ Team Leader Engineering - PLN UP3 Mojokerto
 🔗 github.com/emperorzaky
 📄 Lisensi
 
-Proyek ini bersifat private.
-Tidak diperkenankan distribusi ulang tanpa izin tertulis dari pemilik proyek.
+Proyek ini bersifat private dan tidak diperkenankan untuk disalin, disebarluaskan, atau digunakan ulang tanpa izin tertulis dari pemilik resmi.
