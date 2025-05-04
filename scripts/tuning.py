@@ -1,19 +1,12 @@
 # TUNING.PY v2.4
 # -------------------------------------------------------------
 # LOADPRO Project | Hyperparameter Tuning Pipeline (PSO + Subprocess + Resume JSON + Memory Safe + Save Model + Detailed Logging)
-#
-# Fitur:
-# - Data dibagi 80% training dan 20% validasi (split_train_val)
-# - Optimasi hyperparameter dengan PSO
-# - Evaluasi setiap kombinasi parameter dijalankan dalam subprocess
-# - Penggunaan memory dijaga tetap aman dari OOM
-# - Progress tuning disimpan dalam format JSON untuk keperluan resume
-# - Model terbaik dilatih ulang full dan disimpan dalam format JSON + Weights
-# - Log granular setiap kombinasi training disimpan untuk resume plan
 
+# Hanya menampilkan warning level 3 atau lebih tinggi (supress info/debug)
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# Import library standar
 import pandas as pd
 import time
 import numpy as np
@@ -90,21 +83,24 @@ def objective_function(params_array, data, feeder_name, particle_idx=None, itera
     params['hiddenUnits'] = int(params['hiddenUnits'])
     params['windowSize'] = int(params['windowSize'])
     params['epochs'] = int(params['epochs'])
-    params.update(data)
+    params.update(data)  # tambahkan data X_train, y_train, dll
 
     if particle_idx is not None and iteration_idx is not None:
         print(f"🛠️ Training Particle {particle_idx}/{total_particles} pada Iterasi {iteration_idx}/{total_iterations}...")
 
     try:
+        # Generate ID unik untuk file sementara
         uid = uuid.uuid4().hex[:8]
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         input_dir = os.path.join(base_dir, 'input')
         os.makedirs(input_dir, exist_ok=True)
 
+        # Siapkan path untuk file sementara
         data_path = os.path.join(input_dir, f"data_{uid}.npz")
         params_path = os.path.join(input_dir, f"params_{uid}.json")
         result_path = os.path.join(input_dir, f"result_{uid}.json")
 
+        # Simpan data dan parameter ke file
         np.savez_compressed(data_path, **{
             'X_train': params['X_train'],
             'y_train': params['y_train'],
@@ -113,6 +109,7 @@ def objective_function(params_array, data, feeder_name, particle_idx=None, itera
         })
         json.dump({k: v for k, v in params.items() if k in param_names}, open(params_path, 'w'))
 
+        # Jalankan eval_single_model.py dalam subprocess
         subprocess_log = os.path.join(base_dir, 'logs', f"{feeder_name}_subprocess.log")
         with open(subprocess_log, "a") as log_file:
             subprocess.run([
@@ -122,15 +119,17 @@ def objective_function(params_array, data, feeder_name, particle_idx=None, itera
                 '--output', result_path
             ], stdout=log_file, stderr=log_file, check=True)
 
+        # Baca hasil dari result JSON
         with open(result_path, 'r') as f:
             result = json.load(f)
 
-        return float(result['mape'])
+        return float(result['mape'])  # hanya mengembalikan nilai MAPE
 
     except Exception as e:
         print(f"[ERROR] Subprocess error: {e}")
         return float('inf')
     finally:
+        # Bersihkan file sementara
         for file in [data_path, params_path, result_path]:
             try:
                 os.remove(file)
@@ -146,6 +145,7 @@ def tune_all_feeders():
     try:
         print_device_info()
 
+        # Setup folder
         split_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'processed', 'split'))
         model_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'single'))
         os.makedirs(model_dir, exist_ok=True)
@@ -155,7 +155,7 @@ def tune_all_feeders():
         feeder_count = len(all_files)
         log_print(f"🔍 Ditemukan {feeder_count} file data feeder untuk tuning.", logfile)
 
-        test_size_ratio = 0.2
+        test_size_ratio = 0.2  # rasio data validasi
 
         for filename in tqdm(all_files, desc="Tuning Feeders"):
             try:
@@ -181,6 +181,7 @@ def tune_all_feeders():
                 completed_combinations = generate_resume_plan(progress_log)
                 print(f"🔁 Resume plan ditemukan: {len(completed_combinations)} kombinasi")
 
+                # Split train-val
                 X_train_fixed, X_val_fixed, y_train_fixed, y_val_fixed = split_train_val(X, y, test_size=test_size_ratio)
                 log_print(f"📊 Split rasio train:val = {100 - int(test_size_ratio*100)}:{int(test_size_ratio*100)} ({len(X_train_fixed)} train, {len(X_val_fixed)} val)", logfile)
 
@@ -251,6 +252,7 @@ def tune_all_feeders():
                 log_print(f"✅ Best Params for {filename}: {best_params}", logfile)
                 log_memory(f"📦 Final RAM setelah feeder {feeder_name}")
 
+                # Re-train model terbaik
                 ws = best_params['windowSize']
                 X_best, y_best = [], []
                 for i in range(len(series) - ws):
@@ -266,12 +268,13 @@ def tune_all_feeders():
 
                 _, _, final_model = train_and_evaluate_lstm(data_best, best_params)
 
+                # Simpan model
                 model_path = os.path.join(model_dir, f"{feeder_name}.json")
                 weights_path = os.path.join(model_dir, f"{feeder_name}.weights.h5")
                 with open(model_path, 'w') as f:
                     f.write(final_model.to_json())
                 final_model.save_weights(weights_path)
-                log_print(f"💾 Model disimpan: {model_path}, {weights_path}", logfile)
+                log_print(f"📂 Model disimpan: {model_path}, {weights_path}", logfile)
                 log_print("-" * 60, logfile)
 
             except Exception as e:
@@ -282,7 +285,7 @@ def tune_all_feeders():
         minutes, seconds = divmod(elapsed_time, 60)
         log_print(f"🎉 Tuning selesai untuk semua {feeder_count} file.", logfile)
         log_print(f"🕒 Total waktu eksekusi: {int(minutes)} menit {int(seconds)} detik", logfile)
-        log_print(f"📝 Log aktivitas disimpan di {logfile.name}", logfile)
+        log_print(f"📍 Log aktivitas disimpan di {logfile.name}", logfile)
 
     finally:
         logfile.close()
