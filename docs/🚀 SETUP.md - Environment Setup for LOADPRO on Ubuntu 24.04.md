@@ -78,7 +78,7 @@ echo "loadpro-env" > .python-version
 ## 📦 5. Install Python Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r docs/requirements.txt
 ```
 
 If `requirements.txt` is missing, use this base:
