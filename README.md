@@ -42,7 +42,7 @@ Daftar library Python utama (dan versi rekomendasi):
 
 | Library          | Versi     |
 |------------------|-----------|
-| TensorFlow       | 2.16.1    |
+| TensorFlow       | 2.15.0    |
 | Keras            | 3.2.1     |
 | Pandas           | 2.2.2     |
 | NumPy            | 1.26.4    |
