@@ -125,9 +125,10 @@ Dashboard Streamlit deployment
 👤 Author
 
 Zaky Pradikto
-Team Leader Engineering - PLN UP3 Mojokerto
+Team Leader Engineering - PLN ULP Pacet
 📧 zakypradikto@gmail.com
 🔗 github.com/emperorzaky
+
 📄 Lisensi
 
 Proyek ini bersifat private dan tidak diperkenankan untuk disalin, disebarluaskan, atau digunakan ulang tanpa izin tertulis dari pemilik resmi.
