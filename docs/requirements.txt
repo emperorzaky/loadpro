@@ -24,3 +24,5 @@ absl-py==2.1.0
 grpcio==1.60.1
 packaging==25.0
 wrapt==1.14.1
+psutil==5.9.8
+
