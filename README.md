@@ -169,7 +169,9 @@ loadpro/
 
 **Zaky Pradikto**
 Team Leader Engineering - PLN ULP Pacet
+
 📧 [zakypradikto@gmail.com](mailto:zakypradikto@gmail.com)
+
 🔗 github.com/emperorzaky
 
 ---
