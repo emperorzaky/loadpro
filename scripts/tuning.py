@@ -1,6 +1,6 @@
-# TUNING.PY v2.3 Annotated
+# TUNING.PY v2.4
 # -------------------------------------------------------------
-# LOADPRO Project | Hyperparameter Tuning Pipeline (PSO + Subprocess + Resume JSON + Memory Safe + Save Model)
+# LOADPRO Project | Hyperparameter Tuning Pipeline (PSO + Subprocess + Resume JSON + Memory Safe + Save Model + Detailed Logging)
 #
 # Fitur:
 # - Data dibagi 80% training dan 20% validasi (split_train_val)
@@ -9,9 +9,10 @@
 # - Penggunaan memory dijaga tetap aman dari OOM
 # - Progress tuning disimpan dalam format JSON untuk keperluan resume
 # - Model terbaik dilatih ulang full dan disimpan dalam format JSON + Weights
+# - Log granular setiap kombinasi training disimpan untuk resume plan
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Nonaktifkan warning TensorFlow
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import pandas as pd
 import time
@@ -70,8 +71,9 @@ def print_device_info():
 
 # Menyimpan kombinasi parameter dan hasil ke file log JSON
 
-def save_progress(iteration, particle_idx, params, metrics, progress_log_path):
+def save_progress_json(feeder, iteration, particle_idx, params, metrics, progress_log_path):
     entry = {
+        'feeder': feeder,
         'iteration': iteration,
         'particle': particle_idx,
         'params': params,
@@ -153,7 +155,7 @@ def tune_all_feeders():
         feeder_count = len(all_files)
         log_print(f"🔍 Ditemukan {feeder_count} file data feeder untuk tuning.", logfile)
 
-        test_size_ratio = 0.1  # Bisa diubah ke 0.25 atau 0.3
+        test_size_ratio = 0.2
 
         for filename in tqdm(all_files, desc="Tuning Feeders"):
             try:
@@ -179,11 +181,9 @@ def tune_all_feeders():
                 completed_combinations = generate_resume_plan(progress_log)
                 print(f"🔁 Resume plan ditemukan: {len(completed_combinations)} kombinasi")
 
-                # Hanya lakukan split 1x dan print sekali saja
                 X_train_fixed, X_val_fixed, y_train_fixed, y_val_fixed = split_train_val(X, y, test_size=test_size_ratio)
                 log_print(f"📊 Split rasio train:val = {100 - int(test_size_ratio*100)}:{int(test_size_ratio*100)} ({len(X_train_fixed)} train, {len(X_val_fixed)} val)", logfile)
 
-                # Fungsi objective dibungkus untuk setiap kombinasi PSO
                 def wrapped_objective(params_array, _):
                     current_iter = wrapped_objective.iteration_idx
                     current_particle = wrapped_objective.particle_idx
@@ -192,7 +192,7 @@ def tune_all_feeders():
                         print(f"⏩ Skip Particle ({current_iter}, {current_particle}) (sudah complete)")
                         return float('inf')
 
-                    return objective_function(
+                    score = objective_function(
                         params_array=params_array,
                         data={
                             'X_train': X_train_fixed,
@@ -207,12 +207,29 @@ def tune_all_feeders():
                         total_iterations=wrapped_objective.total_iterations
                     )
 
+                    resume_entry = {
+                        "hiddenUnits": int(params_array[0]),
+                        "learning_rate": float(params_array[1]),
+                        "windowSize": int(params_array[2]),
+                        "epochs": int(params_array[3])
+                    }
+                    save_progress_json(
+                        feeder=filename,
+                        iteration=current_iter,
+                        particle_idx=current_particle,
+                        params=resume_entry,
+                        metrics={"mape": score},
+                        progress_log_path=progress_log
+                    )
+
+                    return score
+
                 wrapped_objective.iteration_idx = 0
                 wrapped_objective.particle_idx = 0
                 wrapped_objective.total_particles = 10
                 wrapped_objective.total_iterations = 20
 
-                data_dummy = {}  # tidak digunakan karena sudah fixed di outer scope
+                data_dummy = {}
 
                 best_params_array = pso_optimize(
                     objective_func=wrapped_objective,
@@ -234,7 +251,6 @@ def tune_all_feeders():
                 log_print(f"✅ Best Params for {filename}: {best_params}", logfile)
                 log_memory(f"📦 Final RAM setelah feeder {feeder_name}")
 
-                # Latih ulang dengan parameter terbaik
                 ws = best_params['windowSize']
                 X_best, y_best = [], []
                 for i in range(len(series) - ws):
