@@ -37,7 +37,7 @@ Tanggal,Waktu,Beban
 |--------|--------------|---------------------------------------------------|
 | A: `Tanggal` | `MM/DD/YYYY` | Tanggal pencatatan beban                     |
 | B: `Waktu`   | `Siang` / `Malam` | Shift waktu pengukuran harian             |
-| C: `Beban`   | `float` (kW)   | Nilai beban aktual dari penyulang           |
+| C: `Beban`   | `float` (A)   | Nilai beban aktual dari penyulang           |
 
 ---
 
