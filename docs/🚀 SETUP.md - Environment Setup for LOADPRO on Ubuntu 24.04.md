@@ -1,135 +1,145 @@
-# 📘 SETUP.md – Environment Setup for LOADPRO (Ubuntu 24.04)
+# 🚀 SETUP.md - Environment Setup for LOADPRO on Ubuntu 24.04
 
-Dokumen ini menjelaskan tahapan setup penuh untuk menjalankan proyek **LOADPRO** di lingkungan Ubuntu 24.04, mulai dari instalasi Python hingga integrasi CUDA/cuDNN agar TensorFlow dapat mendeteksi GPU (GTX 1660 Ti).
+This guide outlines the step-by-step procedure to prepare a clean Ubuntu 24.04 system for the LOADPRO project, including Python environment setup, dependencies installation, and repository initialization.
 
 ---
 
-## 🧩 1. Install Dependencies
+## 🧰 Prerequisites
+
+Ensure your system is connected to the internet and updated.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y build-essential git curl wget unzip nano \\
-  python3-full python3-pip python3-venv \\
-  libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev \\
-  libncursesw5-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+```
 
-🐍 2. Python Setup with pyenv
+Install essential build tools and Python headers (required for building Python with pyenv):
 
-Always show details
+```bash
+sudo apt install -y \
+  build-essential libssl-dev zlib1g-dev libbz2-dev \
+  libreadline-dev libsqlite3-dev curl llvm \
+  libncursesw5-dev xz-utils tk-dev libxml2-dev \
+  libxmlsec1-dev libffi-dev liblzma-dev git
+```
 
+---
+
+## 🐍 Python Environment with `pyenv`
+
+### 1. Install `pyenv`
+
+```bash
 curl https://pyenv.run | bash
+```
 
-Tambahkan ke ~/.bashrc:
+### 2. Configure Shell Environment
 
-Always show details
+Add the following lines to the bottom of your `~/.bashrc`:
 
+```bash
 export PATH="$HOME/.pyenv/bin:$PATH"
-eval "$(pyenv init -)"
+eval "$(pyenv init --path)"
 eval "$(pyenv virtualenv-init -)"
+```
 
-Lalu:
+Then, apply the changes:
 
-Always show details
-
+```bash
 source ~/.bashrc
+```
+
+### 3. Install Python via `pyenv`
+
+```bash
 pyenv install 3.11.7
+pyenv global 3.11.7
+```
 
-📦 3. Setup Project & Virtual Environment
+### 4. Verify Installation
 
-Always show details
+```bash
+python --version  # Should show Python 3.11.7
+```
 
-cd ~/loadpro
-pyenv local 3.11.7
+---
+
+## 📁 Clone LOADPRO Repository
+
+```bash
+git clone <your-private-repo-url>
+cd loadpro
+```
+
+---
+
+## 🧪 Create and Activate Virtual Environment
+
+```bash
 python -m venv venv
 source venv/bin/activate
+```
+
+---
+
+## 📦 Install Python Dependencies
+
+```bash
 pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-⚙️ 4. Auto-Activate venv Saat Masuk ke ~/loadpro
+Ensure the following packages are listed in `requirements.txt`:
 
-Tambahkan ke akhir ~/.bashrc:
+* tensorflow==2.15.0
+* keras==2.15.0
+* scikit-learn==1.4.2
+* pyswarms==1.3.0
+* numpy==1.26.4
+* pandas==2.2.2
+* matplotlib==3.8.4
+* tqdm==4.66.2
+* h5py==3.10.0
+* joblib==1.3.2
+* scikit-optimize==0.10.1
+* absl-py==2.1.0
+* grpcio==1.60.1
+* packaging==25.0
+* wrapt==1.14.1
+* psutil==5.9.8
 
-Always show details
+---
 
-function cd() {
-  builtin cd "$@" || return
-  if [[ "$PWD" == "$HOME/loadpro" && -d "$PWD/venv" ]]; then
-    [[ -z "$VIRTUAL_ENV" ]] && source "$PWD/venv/bin/activate"
-  elif [[ -n "$VIRTUAL_ENV" ]]; then
-    deactivate
-  fi
-}
+## ⚙️ Run the Pipeline
 
-Kemudian:
+To execute the entire LOADPRO pipeline:
 
-Always show details
+```bash
+python3 loadpro.py
+```
 
-source ~/.bashrc
+To reset all processed data and start fresh:
 
-✅ 5. Verifikasi Environment
+```bash
+python3 loadpro.py --reset
+```
 
-Always show details
+---
 
-python --version
-which python
-python -c "import tensorflow as tf; print(tf.__version__)"
-python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+## ✅ Verification
 
-⚡ 6. GPU Setup: CUDA + cuDNN
-a. Cek Driver NVIDIA
+After running, verify these directories are populated:
 
-Always show details
+* `data/processed/split/` → contains siang & malam CSV files
+* `models/single/` → contains .json and .weights.h5 files
+* `results/prediction_results.csv` → contains final predictions
+* `logs/` → contains all tuning and inference logs
 
-nvidia-smi
+---
 
-b. Install CUDA Toolkit 12.2
+## 📞 Support
 
-Always show details
+For issues or support, contact: `zaky.pradikto@pln.co.id`
 
-chmod +x cuda_12.2.0_535.54.03_linux.run
-sudo ./cuda_12.2.0_535.54.03_linux.run
+---
 
-Tambahkan ke ~/.bashrc:
-
-Always show details
-
-export PATH=/usr/local/cuda-12.2/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/cuda-12.2/lib64:$LD_LIBRARY_PATH
-source ~/.bashrc
-
-c. Install cuDNN 8.9.7
-
-Always show details
-
-sudo dpkg -i cudnn-local-repo-ubuntu2204-8.9.7.29_1.0-1_amd64.deb
-sudo cp /var/cudnn-local-repo-ubuntu2204-8.9.7.29/*.gpg /usr/share/keyrings/
-sudo apt update
-sudo apt install libcudnn8 libcudnn8-dev libcudnn8-samples
-
-Verifikasi:
-
-Always show details
-
-cat /usr/include/cudnn_version.h | grep CUDNN_MAJOR -A 2
-
-🛡️ 7. Prevent Sleep Saat Training
-
-Always show details
-
-gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
-gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
-gsettings set org.gnome.desktop.session idle-delay 0
-gsettings set org.gnome.desktop.screensaver lock-enabled false
-
-💾 Tambahan: Ubah Swap Memory Jadi 16GB
-
-Always show details
-sudo swapoff -a
-sudo rm -f /swapfile
-sudo fallocate -l 16G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-swapon --show
-free -h
+> Built with ❤ for UP3 Mojokerto
