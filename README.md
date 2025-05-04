@@ -57,7 +57,7 @@ Daftar library Python utama (dan versi rekomendasi):
 | packaging       | 25.0   |
 | wrapt           | 1.14.1 |
 
-> Semua dependensi tersedia di `requirements.txt`.
+> Semua dependensi tersedia di `docs/requirements.txt`.
 
 ---
 
