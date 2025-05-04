@@ -168,7 +168,8 @@ loadpro/
 ## 👤 Author
 
 **Zaky Pradikto**
-Team Leader Engineering - PLN ULP Pacet
+
+Team Leader Teknik - PLN ULP Pacet
 
 📧 [zakypradikto@gmail.com](mailto:zakypradikto@gmail.com)
 
