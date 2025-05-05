@@ -179,4 +179,4 @@ Team Leader Teknik - PLN ULP Pacet
 
 ## 📄 Lisensi
 
-Proyek ini bersifat private dan tidak diperkenankan untuk disalin, disebarluaskan, atau digunakan ulang tanpa izin tertulis dari pemilik resmi.
+Proyek ini bersifat ~private~ open dan ~tidak~ diperkenankan untuk disalin, disebarluaskan, atau digunakan ulang tanpa izin tertulis dari pemilik resmi.
