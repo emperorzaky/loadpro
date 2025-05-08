@@ -1,15 +1,15 @@
-# TUNING.PY v2.6
+# TUNING.PY v2.7
 # -------------------------------------------------------------
-# LOADPRO Project | Hyperparameter Tuning Pipeline (Parallel PSO + Meta Passing + Resume + Save Model)
+# LOADPRO Project | Hyperparameter Tuning Pipeline (Parallel PSO + Meta Passing + Resume + Save Model + Adaptive Parallelism)
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #baris ini bertujuan menyembunyikan log warning tidak penting dari TensorFlow.
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Sembunyikan log warning TensorFlow yang tidak penting
 
-import pandas as pd #Pandas digunakan untuk membaca dan mengelola data CSV penyulang.
+import pandas as pd
 import time
 import numpy as np
-import gc #Digunakan untuk mengelola dan membebaskan memori secara manual setelah training selesai.
-import psutil #Dipakai untuk mengecek penggunaan memori fisik (RAM) selama proses tuning.
+import gc
+import psutil
 import tensorflow as tf
 from datetime import datetime
 from tqdm import tqdm
@@ -17,32 +17,34 @@ import subprocess
 import json
 import uuid
 
-from utils.prepare_dataset import split_train_val #Fungsi utilitas untuk membagi data menjadi set pelatihan dan validasi (80:20).
+from utils.prepare_dataset import split_train_val
 from utils.pso_optimizer import pso_optimize
 from utils.resume import generate_resume_plan
 from utils.train_lstm_model import train_and_evaluate_lstm
 
-def setup_logger(): #Membuat file log baru untuk mencatat aktivitas tuning per eksekusi.
+def setup_logger():
     logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logs'))
     os.makedirs(logs_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     log_file = os.path.join(logs_dir, f"{timestamp}_tuning.log")
     return open(log_file, "a")
 
-def log_print(message, logfile): #Fungsi helper untuk mencetak dan mencatat log dengan timestamp.
+def log_print(message, logfile):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     full_message = f"[{timestamp}] {message}"
     print(full_message)
     logfile.write(full_message + "\n")
 
-def log_memory(prefix=""): #Mencetak informasi penggunaan memori saat ini, untuk debugging jika terjadi OOM.
+def log_memory(prefix=""):
     mem = psutil.virtual_memory()
     print(f"[MEM] {prefix} | Used: {mem.used / (1024**3):.2f} GB | Free: {mem.available / (1024**3):.2f} GB")
 
-def print_device_info(): #Menampilkan informasi perangkat GPU jika tersedia, dan mengaktifkan memory growth TensorFlow.
+def print_device_info():
     physical_devices = tf.config.list_physical_devices('GPU')
     if physical_devices:
-        print(f"\n🚀 [INFO] GPU available: {physical_devices[0].name}\n")
+        print(f"\n🚀 [INFO] GPU available: {physical_devices[0].name}")
+        print(f"🧠 [INFO] CPU cores: {os.cpu_count()}")
+        print(f"💾 [INFO] Total RAM: {psutil.virtual_memory().total / (1024**3):.2f} GB\n")
         try:
             for gpu in physical_devices:
                 tf.config.experimental.set_memory_growth(gpu, True)
@@ -51,7 +53,14 @@ def print_device_info(): #Menampilkan informasi perangkat GPU jika tersedia, dan
     else:
         print("\n⚙️ [INFO] GPU not found. Using CPU for training.\n")
 
-def save_progress_json(feeder, iteration, particle_idx, params, metrics, progress_log_path): #Menyimpan hasil tuning setiap partikel ke log JSON agar bisa dilanjutkan (resume).
+def get_adaptive_n_jobs():
+    cpu_cores = os.cpu_count()
+    total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+    est_ram_per_proc = 2.0  # Estimasi RAM yang dibutuhkan per proses tuning
+    ram_based_limit = int((total_ram_gb * 0.8) // est_ram_per_proc)
+    return max(1, min(cpu_cores, ram_based_limit))
+
+def save_progress_json(feeder, iteration, particle_idx, params, metrics, progress_log_path):
     entry = {
         'feeder': feeder,
         'iteration': iteration,
@@ -62,7 +71,7 @@ def save_progress_json(feeder, iteration, particle_idx, params, metrics, progres
     with open(progress_log_path, 'a', encoding='utf-8') as f:
         f.write(json.dumps(entry) + '\n')
 
-def objective_function(params_array, meta): #Pertimbangkan menambahkan komentar fungsi yang menjelaskan bahwa ini dieksekusi dalam subprocess dan menerima konteks melalui meta_dict.
+def objective_function(params_array, meta):
     param_names = ['hiddenUnits', 'learning_rate', 'windowSize', 'epochs']
     params = dict(zip(param_names, params_array))
     params['hiddenUnits'] = int(params['hiddenUnits'])
@@ -75,7 +84,7 @@ def objective_function(params_array, meta): #Pertimbangkan menambahkan komentar 
         return float('inf')
 
     try:
-        uid = uuid.uuid4().hex[:8] #Membuat ID unik untuk setiap eksekusi partikel agar file tidak bentrok antar proses.
+        uid = uuid.uuid4().hex[:8]
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         input_dir = os.path.join(base_dir, 'input')
         os.makedirs(input_dir, exist_ok=True)
@@ -92,7 +101,7 @@ def objective_function(params_array, meta): #Pertimbangkan menambahkan komentar 
         })
         json.dump({k: v for k, v in params.items() if k in param_names}, open(params_path, 'w'))
 
-        with open(os.path.join(base_dir, 'logs', f"{meta['feeder_name']}_subprocess.log"), "a") as log_file: #Menangkap seluruh output dari subprocess ke dalam file log terpisah per feeder.
+        with open(os.path.join(base_dir, 'logs', f"{meta['feeder_name']}_subprocess.log"), "a") as log_file:
             subprocess.run([
                 'python3', 'scripts/eval_single_model.py',
                 '--data', data_path,
@@ -132,7 +141,7 @@ def objective_function(params_array, meta): #Pertimbangkan menambahkan komentar 
 
     return score
 
-def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar bahwa ini adalah entry-point utama untuk seluruh proses tuning dan training ulang model terbaik.
+def tune_all_feeders():
     start_time = time.time()
     logfile = setup_logger()
 
@@ -157,7 +166,7 @@ def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar
                 if 'Beban' not in df.columns:
                     raise ValueError(f"File {filename} tidak memiliki kolom 'Beban'.")
 
-                series = df['Beban'].values #Mengambil nilai beban dari kolom CSV sebagai data time-series yang akan diproses.
+                series = df['Beban'].values
                 window_size = 7
                 X, y = [], []
                 for i in range(len(series) - window_size):
@@ -175,7 +184,7 @@ def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar
                 X_train, X_val, y_train, y_val = split_train_val(X, y, test_size=0.2)
                 log_print(f"📊 Split rasio train:val = 80:20 ({len(X_train)} train, {len(X_val)} val)", logfile)
 
-                extra_args_list = [] #Sebaiknya tambahkan komentar sebelum bagian ini untuk menjelaskan bahwa extra_args_list digunakan untuk menyusun konfigurasi parameter per particle per iterasi agar bisa diproses paralel.
+                extra_args_list = []
                 for iteration in range(20):
                     meta_iteration = []
                     for particle in range(100):
@@ -195,7 +204,11 @@ def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar
                         })
                     extra_args_list.append(meta_iteration)
 
-                best_params_array = pso_optimize( #Menjalankan optimasi hyperparameter menggunakan PSO dengan 6 proses paralel.
+                n_jobs = get_adaptive_n_jobs()
+                log_print(f"⚙️ Parallel split aktif: {n_jobs} proses", logfile)
+                #print(f"⚙️ Parallel split aktif: {n_jobs} proses (auto-tuned based on hardware)")
+
+                best_params_array = pso_optimize(
                     objective_func=objective_function,
                     bounds=bounds,
                     n_particles=100,
@@ -204,7 +217,7 @@ def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar
                     cognitive=1.4,
                     social=2.4,
                     extra_args_list=extra_args_list,
-                    n_jobs=6
+                    n_jobs=n_jobs
                 )
 
                 param_names = ['hiddenUnits', 'learning_rate', 'windowSize', 'epochs']
@@ -229,7 +242,7 @@ def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar
                     X_best[split_best:], y_best[split_best:]
                 )
 
-                _, _, final_model = train_and_evaluate_lstm(data_best, best_params) #Melatih ulang model terbaik dengan seluruh data pelatihan dan validasi (dari parameter terbaik).
+                _, _, final_model = train_and_evaluate_lstm(data_best, best_params)
 
                 model_path = os.path.join(model_dir, f"{feeder_name}.json")
                 weights_path = os.path.join(model_dir, f"{feeder_name}.weights.h5")
@@ -252,5 +265,5 @@ def tune_all_feeders(): #Pertimbangkan menjelaskan secara singkat dalam komentar
     finally:
         logfile.close()
 
-if __name__ == "__main__": #Entry point untuk menjalankan fungsi tuning saat script dieksekusi langsung.
+if __name__ == "__main__":
     tune_all_feeders()
