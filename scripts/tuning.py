@@ -18,9 +18,9 @@ import json
 import uuid
 
 from utils.prepare_dataset import split_train_val #Fungsi utilitas untuk membagi data menjadi set pelatihan dan validasi (80:20).
-from utils.pso_optimizer import pso_optimize
-from utils.resume import generate_resume_plan
-from utils.train_lstm_model import train_and_evaluate_lstm
+from utils.pso_optimizer import pso_optimize #Fungsi utama PSO
+from utils.resume import generate_resume_plan #Untuk generate resume plan dari log
+from utils.train_lstm_model import train_and_evaluate_lstm #Untuk training dan evaluasi ulang model terbaik
 
 def setup_logger(): #Membuat file log baru untuk mencatat aktivitas tuning per eksekusi.
     logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logs'))
