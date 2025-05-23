@@ -226,16 +226,16 @@ def tune_all_feeders():
 
                 wrapped_objective.iteration_idx = 0
                 wrapped_objective.particle_idx = 0
-                wrapped_objective.total_particles = 10
-                wrapped_objective.total_iterations = 20
+                wrapped_objective.total_particles = 5
+                wrapped_objective.total_iterations = 3
 
                 data_dummy = {}
 
                 best_params_array = pso_optimize(
                     objective_func=wrapped_objective,
                     bounds=bounds,
-                    n_particles=10,
-                    n_iterations=20,
+                    n_particles=5,
+                    n_iterations=3,
                     inertia=0.7,
                     cognitive=1.4,
                     social=2.4,
