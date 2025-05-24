@@ -6,4 +6,6 @@ venv/
 .env
 .ipynb_checkpoints/
 *.json
-
+*.html
+*.pkl
+*.npz
