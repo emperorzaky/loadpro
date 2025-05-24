@@ -1,0 +1,49 @@
+"""
+reset.py v1.0
+
+Deskripsi:
+-----------
+Utility script untuk menghapus seluruh hasil preprocessing, model, hasil prediksi, dan log.
+Digunakan untuk membersihkan seluruh pipeline dan mulai ulang dari awal.
+
+Penggunaan:
+-----------
+    python3 reset.py
+
+Author: Zaky Pradikto
+"""
+
+import os
+import shutil
+
+# Daftar folder yang akan dihapus isinya (bukan foldernya)
+targets = [
+    'data/npz',
+    'data/metadata',
+    'models/single',
+    'results/predict',
+    'logs/preprocess',
+    'logs/train',
+    'logs/predict',
+    'logs/validator'
+]
+
+# Jalankan pembersihan
+print("⚠️  Memulai reset seluruh hasil...\n")
+for folder in targets:
+    path = os.path.abspath(folder)
+    if os.path.exists(path):
+        for f in os.listdir(path):
+            fp = os.path.join(path, f)
+            try:
+                if os.path.isfile(fp) or os.path.islink(fp):
+                    os.unlink(fp)
+                elif os.path.isdir(fp):
+                    shutil.rmtree(fp)
+            except Exception as e:
+                print(f"❌ Gagal hapus {fp}: {e}")
+        print(f"✅ Kosongkan: {folder}")
+    else:
+        print(f"ℹ️  Folder tidak ditemukan: {folder}")
+
+print("\n🧼 Reset selesai. Semua hasil telah dihapus.")

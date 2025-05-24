@@ -1,1 +1,0 @@
- # Hasil preprocessing (.npz siang/malam)

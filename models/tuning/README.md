@@ -1,1 +1,1 @@
-# Log tuning + hasil evaluasi kombinasi
+# model hasil tuning (grid search, PSO, dsb)

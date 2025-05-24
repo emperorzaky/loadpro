@@ -23,7 +23,9 @@ loadpro/
 ├── logs/
 │   ├── preprocess/         # log preprocessing
 │   ├── tuning/             # log tuning
-│   └── predict/            # log prediksi
+│   ├── predict/            # log prediksi
+│   └── validator/          # log validasi hasil preprocessing
+            # log prediksi
 │
 ├── scripts/
 │   ├── preprocess.py       # preprocessing utama
@@ -124,7 +126,20 @@ cat /usr/include/cudnn_version.h | grep CUDNN_MAJOR -A 2
 ```
 Harus muncul `8.9.7`
 
-### 7. Cegah Sleep Saat Tuning (opsional)
+### 7. Install cuBLAS untuk TensorFlow GPU (wajib)
+Tambahkan repo CUDA NVIDIA:
+```bash
+sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+sudo apt update
+```
+
+Lalu install cuBLAS:
+```bash
+sudo apt install libcublas-12-2 libcublas-dev-12-2
+```
+
+### 8. Cegah Sleep Saat Tuning (opsional)
 ```bash
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
@@ -139,6 +154,7 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 - [x] Virtualenv `venv/`
 - [x] Git system terpasang
 - [x] CUDA 12.2 + cuDNN 8.9.7 siap pakai TensorFlow GPU
+- [x] cuBLAS terpasang untuk menghindari error `libcublasLt.so.11`
 - [ ] Dataset .csv siap di `data/raw/`
 - [ ] Script `preprocess.py` siap jalan
 
