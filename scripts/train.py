@@ -1,131 +1,116 @@
 """
-train.py v1.2
+train.py v1.6.1
 
 Deskripsi:
 -----------
-Melatih model LSTM untuk satu penyulang berdasarkan data hasil preprocessing (.npz)
-dan scaler (.pkl). Dirancang untuk eksekusi per-feeder via CLI agar efisien dan
-scalable untuk 1000+ penyulang. Versi ini menambahkan fitur logging training
-ke dalam folder logs/train/ dan info perangkat (CPU/GPU).
+Melatih model LSTM menggunakan data hasil preprocessing (.npz) dan menyimpan model .keras hasil training.
+Versi ini mendukung fallback otomatis ke CPU dengan menjalankan ulang proses training dalam subprocess jika GPU (cuDNN) gagal.
 
 Penggunaan:
 -----------
-    python train.py --feeder penyulang_khaleesi --kategori malam
+    python3 scripts/train.py --feeder penyulang_aragog --kategori siang
+    python3 scripts/train.py --feeder penyulang_aragog --kategori siang --force_cpu
 
 Output:
--------
-- Model tersimpan di: models/single/{feeder}_{kategori}.keras
-- Log training tersimpan di: logs/train/YYYYMMDD_HHMM_{feeder}_{kategori}_train.log
+--------
+- Model disimpan di: models/single/{feeder}_{kategori}.keras
+- Log training: logs/train/YYYYMMDD_HHMM_{feeder}_{kategori}_train.log
 
 Author: Zaky Pradikto
 """
 
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = '3'
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Paksa training hanya di CPU
-
 import argparse
 import numpy as np
 import joblib
-from datetime import datetime
-from pathlib import Path
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, InputLayer
-from tensorflow.keras.callbacks import EarlyStopping
+import subprocess
 import tensorflow as tf
+from datetime import datetime
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.callbacks import EarlyStopping
+from utils.device import get_device
 
-# ----------------------------
-# Argument Parser CLI
-# ----------------------------
+# Argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument('--feeder', required=True, help="Nama penyulang tanpa ekstensi")
+parser.add_argument('--feeder', required=True, help="Nama penyulang")
 parser.add_argument('--kategori', required=True, choices=['siang', 'malam'], help="Kategori waktu")
+parser.add_argument('--force_cpu', action='store_true', help="Paksa training di CPU")
 args = parser.parse_args()
 
-# ----------------------------
-# Deteksi perangkat
-# ----------------------------
-physical_devices = tf.config.list_physical_devices('GPU')
-device_used = 'GPU' if physical_devices else 'CPU'
+# Paksa CPU jika diminta
+if args.force_cpu:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-# ----------------------------
-# Path & File Validasi
-# ----------------------------
-data_dir = os.path.join('data', 'npz')
-meta_dir = os.path.join('data', 'metadata')
-model_dir = os.path.join('models', 'single')
-log_dir = os.path.join('logs', 'train')
-Path(log_dir).mkdir(parents=True, exist_ok=True)
+# Aktifkan memory growth jika GPU digunakan
+try:
+    gpus = tf.config.list_physical_devices('GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+except:
+    pass
+
+# Path
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+npz_path = os.path.join(base_dir, 'data', 'npz', f"{args.feeder}_{args.kategori}.npz")
+model_dir = os.path.join(base_dir, 'models', 'single')
 os.makedirs(model_dir, exist_ok=True)
-
-npz_path = os.path.join(data_dir, f"{args.feeder}_{args.kategori}.npz")
-pkl_path = os.path.join(meta_dir, f"{args.feeder}_{args.kategori}_scaler.pkl")
 model_path = os.path.join(model_dir, f"{args.feeder}_{args.kategori}.keras")
+log_dir = os.path.join(base_dir, 'logs', 'train')
+os.makedirs(log_dir, exist_ok=True)
+now_str = datetime.now().strftime("%Y%m%d_%H%M")
+log_path = os.path.join(log_dir, f"{now_str}_{args.feeder}_{args.kategori}_train.log")
 
-if not os.path.exists(npz_path):
-    raise FileNotFoundError(f"File .npz tidak ditemukan: {npz_path}")
-if not os.path.exists(pkl_path):
-    raise FileNotFoundError(f"File scaler .pkl tidak ditemukan: {pkl_path}")
-
-# ----------------------------
-# Load Data
-# ----------------------------
+# Load data
+print(f"💻 Menggunakan device: {get_device()}")
 data = np.load(npz_path)
 X, y = data['X'], data['y']
 print(f"✅ Data loaded: X shape = {X.shape}, y shape = {y.shape}")
 
-# ----------------------------
-# Build Model
-# ----------------------------
-window_size = X.shape[1]
-hidden_units = 50
+# Fungsi pembuat model
+def build_model():
+    model = Sequential()
+    model.add(LSTM(
+        50,
+        input_shape=(X.shape[1], X.shape[2]),
+        activation='tanh',
+        recurrent_activation='sigmoid',
+        use_bias=True,
+        return_sequences=False,
+        unroll=False
+    ))
+    model.add(Dense(1))
+    model.compile(loss='mse', optimizer='adam', metrics=['mae'])
+    return model
 
-model = Sequential([
-    InputLayer(input_shape=(window_size, 1)),
-    LSTM(hidden_units),
-    Dense(1)
-])
-
-model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-model.summary()
-
-# ----------------------------
-# Setup Log File
-# ----------------------------
-timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-log_file_name = f"{timestamp}_{args.feeder}_{args.kategori}_train.log"
-log_file_path = os.path.join(log_dir, log_file_name)
-
-with open(log_file_path, "w") as f:
-    f.write(f"📅 Training Timestamp : {timestamp}\n")
-    f.write(f"📁 Feeder             : {args.feeder}\n")
-    f.write(f"🕒 Kategori Waktu     : {args.kategori}\n")
-    f.write(f"🖥️  Device Digunakan   : {device_used}\n")
-    f.write(f"📊 Input Shape (X)    : {X.shape}\n")
-    f.write(f"📊 Target Shape (y)   : {y.shape}\n")
-    f.write("\n📐 Model Summary:\n")
-    model.summary(print_fn=lambda x: f.write(x + "\n"))
-
-# ----------------------------
 # Training
-# ----------------------------
-callbacks = [EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)]
+callbacks = [EarlyStopping(patience=5, restore_best_weights=True)]
+model = build_model()
 print("\n🚀 Starting training...")
-history = model.fit(X, y, epochs=50, batch_size=32, verbose=1, callbacks=callbacks)
+try:
+    history = model.fit(X, y, epochs=50, batch_size=32, verbose=1, callbacks=callbacks)
+except tf.errors.InternalError:
+    if args.force_cpu:
+        raise RuntimeError("🔥 Fallback CPU juga gagal. Abort.")
+    print("⚠️ cuDNN gagal. Menjalankan ulang training di CPU...")
+    subprocess.run([
+        'python3', os.path.abspath(__file__),
+        '--feeder', args.feeder,
+        '--kategori', args.kategori,
+        '--force_cpu'
+    ])
+    exit()
 
-# ----------------------------
-# Save Model
-# ----------------------------
+# Save
 model.save(model_path)
 print(f"\n💾 Model saved to: {model_path}")
 
-# ----------------------------
-# Save Training Log
-# ----------------------------
-with open(log_file_path, "a") as f:
-    f.write("\n📈 Training History (loss/mae per epoch):\n")
-    for i, (l, m) in enumerate(zip(history.history['loss'], history.history['mae'])):
-        f.write(f"Epoch {i+1:02d}: Loss = {l:.6f}, MAE = {m:.6f}\n")
-    f.write(f"\n💾 Model saved to: {model_path}\n")
+# Save log
+with open(log_path, 'w') as f:
+    f.write(f"Training log: {args.feeder} ({args.kategori})\n")
+    f.write(f"Device: {get_device()}\n")
+    f.write(f"X shape: {X.shape}, y shape: {y.shape}\n")
+    f.write(f"Final loss: {history.history['loss'][-1]:.4f}\n")
+    f.write(f"Final mae: {history.history['mae'][-1]:.4f}\n")
 
-print(f"📝 Training log saved to: {log_file_path}")
+print(f"📄 Log saved to: {log_path}")
