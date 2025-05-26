@@ -1,54 +1,46 @@
 # LOADPRO - Load Prediction Optimization
 
-**LOADPRO** adalah sebuah AI yang sedang dikembangkan untuk melakukan prediksi beban puncak listrik harian berbasis RNN-LSTM, dengan tuning hyperparameter yang dioptimalkan menggunakan Particle Swarm Optimization (PSO). Tujuannya adalah untuk mempermudah monitoring beban harian penyulang secara otomatis, akurat, dan dapat di-*scale-up* ke seluruh sistem distribusi PLN.
+**LOADPRO** adalah sistem AI untuk prediksi beban puncak listrik harian berbasis RNN-LSTM. Versi **v.4 (Stable)** ini dirancang agar dapat berjalan **stabil di CPU maupun GPU**, tanpa proses tuning. Sistem dapat di-*scale-up* untuk distribusi PLN multi-penyulang.
 
 ---
 
 ## 📚 Deskripsi
 
 - Prediksi beban harian per penyulang menggunakan deep learning (RNN-LSTM).
-- Hyperparameter tuning menggunakan Particle Swarm Optimization (PSO).
-- Mendukung metode tuning lain seperti Random Search, Bayesian Optimization, Genetic Algorithm.
-- Output utama: model terbaik + hasil prediksi harian per feeder.
+- Versi ini **tanpa tuning**, menggunakan struktur model default.
+- Output utama: model terbaik + hasil prediksi historis dan beban next day per penyulang.
 
 ---
 
 ## 🧩 Spesifikasi Sistem
 
-LOADPRO dikembangkan dan diuji pada environment berikut:
-
-| Komponen               | Versi / Spesifikasi                  |
-|------------------------|--------------------------------------|
-| OS                     | Ubuntu 24.04 LTS                     |
-| Python                 | 3.10                                 |
-| CUDA Toolkit           | 12.2                                 |
-| cuDNN                  | 8.9                                  |
-| GPU Support            | NVIDIA GTX 1660 Ti (6GB)             |
-| RAM Minimum            | 16 GB                                |
-| Swap Memory Disarankan | 16 GB                                |
-| Virtual Environment    | `venv` (Python built-in)             |
-
-> Untuk menggunakan GPU, pastikan driver NVIDIA dan versi CUDA/cuDNN sesuai dengan TensorFlow dan Keras yang digunakan.
+| Komponen               | Versi / Spesifikasi        |
+|------------------------|----------------------------|
+| OS                     | Ubuntu 24.04 LTS           |
+| Python                 | 3.11.7                     |
+| CUDA Toolkit           | 12.2                       |
+| cuDNN                  | 8.9.7                      |
+| GPU Support            | NVIDIA GTX 1660 Ti (6GB)   |
+| RAM Minimum            | 16 GB                      |
+| Swap Memory Disarankan | 16 GB                      |
+| Virtual Environment    | `venv` (Python built-in)   |
 
 ---
 
 ## 📦 Python Package Requirements
 
-Daftar library Python utama (dan versi rekomendasi):
+| Library        | Versi     |
+|----------------|-----------|
+| TensorFlow     | 2.15.0    |
+| Keras          | 2.15.0    |
+| Pandas         | 2.2.2     |
+| NumPy          | 1.26.4    |
+| Scikit-Learn   | 1.4.2     |
+| Matplotlib     | 3.8.4     |
+| tqdm           | 4.66.4    |
+| joblib         | 1.4.2     |
 
-| Library          | Versi     |
-|------------------|-----------|
-| TensorFlow       | 2.16.1    |
-| Keras            | 3.2.1     |
-| Pandas           | 2.2.2     |
-| NumPy            | 1.26.4    |
-| Scikit-Learn     | 1.4.2     |
-| Matplotlib       | 3.10.1    |
-| tqdm             | 4.66.4    |
-| joblib           | 1.4.2     |
-| namex (custom)   | 0.0.7     |
-
-> Semua dependensi tersedia di `requirements.txt`.
+> Semua dependensi tersedia di `requirements.txt`
 
 ---
 
@@ -56,73 +48,88 @@ Daftar library Python utama (dan versi rekomendasi):
 
 ```bash
 # Clone repo
-git clone https://github.com/emperorzaky/loadpro.git
+cd ~ && git clone https://github.com/emperorzaky/loadpro.git
 cd loadpro
 
+# Install pyenv & Python 3.11.7 sesuai SETUP.md
 # Aktifkan virtualenv
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies
+# Install dependensi
 pip install -r requirements.txt
+```
 
-🚀 Eksekusi Pipeline
+---
 
-# Preprocessing data .csv
-python scripts/preprocess.py
+## 🚀 Eksekusi Pipeline (v.4 - tanpa tuning)
 
-# Tuning hyperparameter (PSO)
-python scripts/tuning.py
+```bash
+# Jalankan semua proses end-to-end:
+python3 loadpro.py
 
-# Prediksi final menggunakan model terbaik
-python scripts/predict.py
+# Atau jalankan manual per tahap:
+python3 scripts/preprocess.py
+python3 scripts/train_all.py
+python3 scripts/predict_all.py
+```
 
-🧠 Fitur Utama
+---
 
-    ✅ Preprocessing data siang/malam terpisah
+## 🧠 Fitur Utama
 
-    ✅ Tuning PSO dengan fitur resume log
+- ✅ Preprocessing siang & malam otomatis
+- ✅ Training per penyulang dengan fallback GPU → CPU
+- ✅ Prediksi all historical + next day
+- ✅ Ringkasan hasil dalam log & CSV
+- ✅ Struktur modular & terdokumentasi
 
-    ❌ Skema 2 tahap (eksplorasi → eksploitasi lokal) sedang dikembangkan
+---
 
-    ✅ Evaluasi akurasi multi-metrik (MAPE, RMSE, MAE)
+## 🗂️ Struktur Folder
 
-    ✅ Struktur kode modular & terdokumentasi
-
-🗂️ Struktur Folder
-
+```
 loadpro/
-├── dashboard/       # UI/Backend untuk visualisasi beban
 ├── data/            # Data input dan hasil preprocessing
-├── docs/            # Dokumentasi teknis dan catatan internal
-├── input/           # File parameter, konfigurasi, dan input manual
-├── logs/            # Log proses training, tuning, dan prediksi
-├── models/          # File model LSTM hasil tuning
-├── results/         # Hasil prediksi, evaluasi, grafik
-├── scripts/         # Pipeline utama: preprocess, tuning, prediksi
-└── README.md        # Dokumentasi utama proyek
+├── models/          # Model LSTM (.keras)
+├── results/         # Hasil prediksi
+├── logs/            # Log preprocess, train, predict
+├── scripts/         # Script utama (preprocess, train, predict)
+├── docs/            # Dokumentasi (SETUP.md, FLOW.md, dll)
+└── loadpro.py       # Entry point pipeline
+```
 
-📌 Status Perkembangan
+---
 
-Preprocessing pipeline
+## 🧪 Benchmarking (Test CPU vs GPU)
 
-PSO hyperparameter tuning
+- Tes TensorFlow vs GPU dengan `scripts/test.py`
+- Benchmark Matrix Multiply 10k x 10k
 
-Model evaluation & log tracking
+| Device | Time (approx) |
+|--------|----------------|
+| CPU    | 5.4 detik      |
+| GPU    | 0.8 detik      |
 
-Struktur multi-feeder siap pakai
+> Gunakan CUDA 12.2 + cuDNN 8.9.7 agar GPU dapat digunakan penuh
 
-Two-stage PSO (eksplorasi → eksploitasi)
+---
 
-Dashboard Streamlit deployment
+## 🔄 Versi
 
-    Public version sanitasi & rilis terbuka
+| Versi | Deskripsi                              |
+|--------|------------------------------------------|
+| v.3    | Dengan PSO tuning (100 particles, 5 iterasi) |
+| v.4    | Tanpa tuning, stabil di CPU/GPU         |
 
-👤 Author
-Zaky Pradikto
-Team Leader Teknik - PLN ULP Pacet
-📧 zakypradikto@gmail.com
+---
+
+## 👤 Author
+Zaky Pradikto  
+Team Leader Teknik - PLN ULP Pacet  
+📧 zakypradikto@gmail.com  
 🔗 github.com/emperorzaky
 
-📄 Lisensi
-Proyek ini bersifat private dan tidak diperkenankan untuk disalin, disebarluaskan, atau digunakan ulang tanpa izin tertulis dari pemilik resmi.
+
+## 📄 Lisensi
+Proyek ini bersifat **private** dan tidak diperkenankan untuk disalin, disebarluaskan, atau digunakan ulang tanpa izin tertulis dari pemilik resmi.
