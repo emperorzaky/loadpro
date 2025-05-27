@@ -1,1 +1,0 @@
-# model hasil tuning (grid search, PSO, dsb)

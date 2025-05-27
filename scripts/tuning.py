@@ -1,12 +1,13 @@
 # ===================================================
-# tuning.py v1.0
+# tuning.py v1.1
 # ---------------------------------------------------
 # LOADPRO | Hyperparameter Tuning Entry Point
 #
 # Deskripsi:
 # - Menjalankan tuning berdasarkan metode yang dipilih
 # - Mendukung modularisasi metode tuning (grid, random, bayesopt, dll)
-# - Menyimpan log hasil tuning secara otomatis ke logs/tuning/
+# - Menyimpan hasil tuning (.pkl + .keras) ke folder results/tuning/
+# - Menyimpan log stdout ke folder logs/tuning/
 # ===================================================
 
 import os
@@ -21,9 +22,9 @@ from tuning.bayesopt_search import run_bayesopt
 from utils.load_dataset import load_dataset
 from utils.lstm_train_predict import train_and_evaluate_model
 
-# Pastikan folder logs dan models tersedia
+# Pastikan semua folder output tersedia
 os.makedirs("logs/tuning", exist_ok=True)
-os.makedirs("models/tuning", exist_ok=True)
+os.makedirs("results/tuning", exist_ok=True)
 
 # Argument parsing
 parser = argparse.ArgumentParser()
