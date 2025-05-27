@@ -1,10 +1,17 @@
 """
-reset.py v1.0
+reset.py v1.1
 
 Deskripsi:
 -----------
 Utility script untuk menghapus seluruh hasil preprocessing, model, hasil prediksi, dan log.
 Digunakan untuk membersihkan seluruh pipeline dan mulai ulang dari awal.
+
+Perubahan v1.1:
+---------------
++ Tambahkan penghapusan isi folder:
+    - models/tuning/
+    - results/tuning/
+    - logs/tuning/
 
 Penggunaan:
 -----------
@@ -21,10 +28,13 @@ targets = [
     'data/npz',
     'data/metadata',
     'models/single',
+    'models/tuning',
     'results/predict',
+    'results/tuning',
     'logs/preprocess',
     'logs/train',
     'logs/predict',
+    'logs/tuning',
     'logs/validator'
 ]
 
