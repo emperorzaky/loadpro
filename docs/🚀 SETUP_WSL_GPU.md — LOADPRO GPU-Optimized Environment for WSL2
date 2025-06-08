@@ -1,0 +1,84 @@
+This guide helps you set up a GPU-accelerated environment for the LOADPRO project using WSL2 + Ubuntu 24.04 with NVIDIA RTX GPU.
+
+✅ Prerequisites (Windows-side)
+
+Windows 11 or Windows 10 (Build 19044+)
+
+WSL2 with Ubuntu 24.04 already installed
+
+GPU: NVIDIA RTX 4070/5070/3090/etc.
+
+Installed: ✅ NVIDIA Driver 535+
+
+Installed: ✅ CUDA Toolkit 12.2 (Windows)
+
+🔍 Check GPU availability on Windows
+
+nvidia-smi
+
+Ensure it shows your GPU model and CUDA version.
+
+✅ Step 1: Update Ubuntu & Install Python 3.11
+
+sudo apt update && sudo apt upgrade -y
+sudo apt install software-properties-common -y
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3.11-dev -y
+
+✅ Step 2: Set up LOADPRO project directory
+
+cd ~
+git clone https://github.com/emperorzaky/loadpro.git
+cd loadpro
+python3.11 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+
+✅ Step 3: Install Requirements
+
+If you are using Python 3.11, you can use TensorFlow 2.15.0 with GPU support:
+
+nano docs/requirements.txt
+
+Ensure the TensorFlow line is:
+
+tensorflow==2.15.0
+
+Then install:
+
+pip install -r docs/requirements.txt
+
+✅ Step 4: Test GPU availability
+
+python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+
+You should see something like:
+
+[PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+
+If this shows empty list [], ensure:
+
+Your driver & CUDA version on Windows are installed correctly
+
+You're using TensorFlow 2.15.0 or newer
+
+You installed all Python packages from inside venv
+
+✅ Optional: Install PyTorch with GPU (for testing or future use)
+
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+✅ Done! You're now ready to run:
+
+python scripts/tuning.py penyulang_gading
+
+At full speed, powered by GPU 🚀
+
+🧠 Tips:
+
+Simpan project di dalam /home/youruser, bukan /mnt/c/
+
+Gunakan VSCode + Remote WSL untuk kenyamanan
+
+Gunakan htop / nvidia-smi (di Windows) untuk pantau resource
