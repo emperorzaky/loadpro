@@ -35,6 +35,7 @@ targets = [
     'logs/train',
     'logs/predict',
     'logs/tuning',
+    'logs/compare',
     'logs/validator'
 ]
 

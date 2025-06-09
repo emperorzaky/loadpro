@@ -1,56 +1,61 @@
-"""
-train_all.py
-
-Deskripsi:
------------
-Script untuk melakukan training semua file .npz di folder data/npz.
-Akan melewati file yang model .keras-nya sudah tersedia.
-Mencetak log ringkas per feeder ke terminal.
-
-Penggunaan:
------------
-    python scripts/train_all.py
-
-Author: Zaky Pradikto
-"""
+# ===================================================
+# TRAIN_ALL.PY v1.1
+# ---------------------------------------------------
+# LOADPRO Project | Batch training semua penyulang
+#
+# Fitur:
+# - Jalankan train.py untuk semua .npz di data/npz
+# - Lewati model yang sudah ada (default)
+# - Gunakan --overwrite untuk latih ulang
+# - Gunakan --output untuk simpan model ke folder lain
+#
+# Contoh:
+# $ python3 scripts/train_all.py
+# $ python3 scripts/train_all.py --overwrite
+# $ python3 scripts/train_all.py --output models/temporary/
+# ===================================================
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = '3'
+import argparse
 import subprocess
-from datetime import datetime
 
-# Folder sumber dan model
-npz_dir = os.path.join('data', 'npz')
-model_dir = os.path.join('models', 'single')
+# --- Argument parser ---
+parser = argparse.ArgumentParser()
+parser.add_argument('--overwrite', action='store_true', help='Force retrain all even if model exists')
+parser.add_argument('--output', default='models/temporary', help='Output folder untuk model .keras')
+args = parser.parse_args()
 
-# Ambil semua file .npz
-files = sorted([f for f in os.listdir(npz_dir) if f.endswith('.npz')])
-print(f"📦 Menemukan {len(files)} file .npz")
-print("------------------------------------------")
+# --- Lokasi folder ---
+data_dir = 'data/npz'
+model_dir = args.output
+os.makedirs(model_dir, exist_ok=True)
 
-# Jalankan training per feeder
-for file in files:
-    feeder_kat = file.replace('.npz', '')
-    feeder_parts = feeder_kat.split('_')
-    if len(feeder_parts) < 2:
-        print(f"⚠️  Lewati file tidak valid: {file}")
-        continue
+# --- Cari semua file .npz ---
+npz_files = sorted([f for f in os.listdir(data_dir) if f.endswith('.npz')])
+print(f"\n📦 Menemukan {len(npz_files)} file .npz")
+print("-" * 42)
 
-    feeder = '_'.join(feeder_parts[:-1])
-    kategori = feeder_parts[-1]
-
+# --- Loop semua file ---
+for filename in npz_files:
+    feeder_kat = filename.replace('.npz', '')
+    feeder, kategori = feeder_kat.rsplit('_', 1)
     model_path = os.path.join(model_dir, f"{feeder}_{kategori}.keras")
-    if os.path.exists(model_path):
-        print(f"✅ SKIP {feeder}_{kategori} — model sudah ada")
+
+    if not args.overwrite and os.path.exists(model_path):
+        print(f"⏩ Melewati: {feeder}_{kategori} (model sudah ada)")
         continue
 
     print(f"🚀 Training {feeder}_{kategori}...")
-    cmd = ["python3", "scripts/train.py", "--feeder", feeder, "--kategori", kategori]
     try:
+        cmd = [
+            'python3', 'scripts/train.py',
+            '--feeder', feeder,
+            '--kategori', kategori,
+            '--output', model_dir
+        ]
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ GAGAL training {feeder}_{kategori}: {e}")
-    print("------------------------------------------")
+    print("-" * 42)
 
-print("🎉 Selesai training semua feeder.")
+print("\n🎉 Selesai training semua penyulang.")
