@@ -2,4 +2,5 @@
 
 Folder utama untuk menyimpan data input dan hasil preprocessing.
 - /raw/: berisi file .csv mentah per penyulang
-- /processed/split/: hasil preprocessing dan windowing
+- /npz/: hasil preprocessing dan windowing
+- /metadata/: hasil preprocessing dan windowing
