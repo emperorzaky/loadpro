@@ -1,116 +1,113 @@
-"""
-train.py v1.6.1
-
-Deskripsi:
------------
-Melatih model LSTM menggunakan data hasil preprocessing (.npz) dan menyimpan model .keras hasil training.
-Versi ini mendukung fallback otomatis ke CPU dengan menjalankan ulang proses training dalam subprocess jika GPU (cuDNN) gagal.
-
-Penggunaan:
------------
-    python3 scripts/train.py --feeder penyulang_aragog --kategori siang
-    python3 scripts/train.py --feeder penyulang_aragog --kategori siang --force_cpu
-
-Output:
---------
-- Model disimpan di: models/single/{feeder}_{kategori}.keras
-- Log training: logs/train/YYYYMMDD_HHMM_{feeder}_{kategori}_train.log
-
-Author: Zaky Pradikto
-"""
+# ===================================================
+# TRAIN.PY v1.0
+# ---------------------------------------------------
+# LOADPRO Project | Training model RNN-LSTM per feeder per kategori
+# Output: Model .keras + log hasil training
+# ===================================================
+# scripts/train.py --feeder <feeder_name> --kategori <siang|malam>
 
 import os
+import sys
+import time
 import argparse
 import numpy as np
-import joblib
-import subprocess
 import tensorflow as tf
+from tensorflow import keras
 from datetime import datetime
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-from tensorflow.keras.callbacks import EarlyStopping
-from utils.device import get_device
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+import joblib
 
-# Argument parser
-parser = argparse.ArgumentParser()
-parser.add_argument('--feeder', required=True, help="Nama penyulang")
-parser.add_argument('--kategori', required=True, choices=['siang', 'malam'], help="Kategori waktu")
-parser.add_argument('--force_cpu', action='store_true', help="Paksa training di CPU")
-args = parser.parse_args()
+# --------------------
+# Setup Logging
+# --------------------
+def setup_logger(feeder, kategori):
+    log_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'logs', 'train'))
+    os.makedirs(log_dir, exist_ok=True)
+    ts = datetime.now().strftime('%Y%m%d_%H%M')
+    log_path = os.path.join(log_dir, f"{ts}_train_{feeder}_{kategori}.log")
+    return open(log_path, 'w')
 
-# Paksa CPU jika diminta
-if args.force_cpu:
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+def log(logfile, msg):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    line = f"{timestamp} {msg}"
+    print(line)
+    logfile.write(line + "\n")
 
-# Aktifkan memory growth jika GPU digunakan
-try:
-    gpus = tf.config.list_physical_devices('GPU')
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-except:
-    pass
+# --------------------
+# Load Data
+# --------------------
+def load_data(feeder, kategori):
+    npz_path = os.path.join('data', 'npz', f'{feeder}_{kategori}.npz')
+    with np.load(npz_path) as data:
+        return data['X'], data['y']
 
-# Path
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-npz_path = os.path.join(base_dir, 'data', 'npz', f"{args.feeder}_{args.kategori}.npz")
-model_dir = os.path.join(base_dir, 'models', 'single')
-os.makedirs(model_dir, exist_ok=True)
-model_path = os.path.join(model_dir, f"{args.feeder}_{args.kategori}.keras")
-log_dir = os.path.join(base_dir, 'logs', 'train')
-os.makedirs(log_dir, exist_ok=True)
-now_str = datetime.now().strftime("%Y%m%d_%H%M")
-log_path = os.path.join(log_dir, f"{now_str}_{args.feeder}_{args.kategori}_train.log")
+# --------------------
+# Train Model
+# --------------------
+def train_lstm(X, y, logf):
+    input_shape = X.shape[1:]
+    log(logf, f"📐 Shape input: {X.shape}, target: {y.shape}")
+    
+    model = keras.Sequential([
+        keras.layers.LSTM(50, input_shape=input_shape),
+        keras.layers.Dense(1)
+    ])
 
-# Load data
-print(f"💻 Menggunakan device: {get_device()}")
-data = np.load(npz_path)
-X, y = data['X'], data['y']
-print(f"✅ Data loaded: X shape = {X.shape}, y shape = {y.shape}")
+    model.compile(optimizer='adam', loss='mse')
+    log(logf, "🧠 Model compiled. Mulai training...")
 
-# Fungsi pembuat model
-def build_model():
-    model = Sequential()
-    model.add(LSTM(
-        50,
-        input_shape=(X.shape[1], X.shape[2]),
-        activation='tanh',
-        recurrent_activation='sigmoid',
-        use_bias=True,
-        return_sequences=False,
-        unroll=False
-    ))
-    model.add(Dense(1))
-    model.compile(loss='mse', optimizer='adam', metrics=['mae'])
+    early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
+    history = model.fit(X, y, epochs=50, batch_size=16, verbose=0, callbacks=[early_stop])
+
+    log(logf, f"📉 Final Loss: {history.history['loss'][-1]:.4f}")
+    log(logf, f"🛑 Early stopped after {len(history.history['loss'])} epochs")
     return model
 
-# Training
-callbacks = [EarlyStopping(patience=5, restore_best_weights=True)]
-model = build_model()
-print("\n🚀 Starting training...")
-try:
-    history = model.fit(X, y, epochs=50, batch_size=32, verbose=1, callbacks=callbacks)
-except tf.errors.InternalError:
-    if args.force_cpu:
-        raise RuntimeError("🔥 Fallback CPU juga gagal. Abort.")
-    print("⚠️ cuDNN gagal. Menjalankan ulang training di CPU...")
-    subprocess.run([
-        'python3', os.path.abspath(__file__),
-        '--feeder', args.feeder,
-        '--kategori', args.kategori,
-        '--force_cpu'
-    ])
-    exit()
+# --------------------
+# Evaluate and Save
+# --------------------
+def evaluate_and_save(model, X, y, feeder, kategori, logf):
+    pred = model.predict(X, verbose=0).flatten()
 
-# Save
-model.save(model_path)
-print(f"\n💾 Model saved to: {model_path}")
+    mae = mean_absolute_error(y, pred)
+    rmse = mean_squared_error(y, pred, squared=False)
 
-# Save log
-with open(log_path, 'w') as f:
-    f.write(f"Training log: {args.feeder} ({args.kategori})\n")
-    f.write(f"Device: {get_device()}\n")
-    f.write(f"X shape: {X.shape}, y shape: {y.shape}\n")
-    f.write(f"Final loss: {history.history['loss'][-1]:.4f}\n")
-    f.write(f"Final mae: {history.history['mae'][-1]:.4f}\n")
+    log(logf, f"✅ Evaluation:")
+    log(logf, f"   MAE  = {mae:.4f}")
+    log(logf, f"   RMSE = {rmse:.4f}")
+    log(logf, f"   Min y = {np.min(y):.4f}, Max y = {np.max(y):.4f}")
 
-print(f"📄 Log saved to: {log_path}")
+    if np.any(y == 0):
+        log(logf, f"⚠️ MAPE tidak dihitung karena ada nilai y == 0")
+    else:
+        mape = mean_absolute_percentage_error(y, pred)
+        log(logf, f"   MAPE = {mape:.4f}")
+
+    out_dir = os.path.join('models', 'single')
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f'{feeder}_{kategori}.keras')
+    model.save(out_path)
+    log(logf, f"💾 Model disimpan di: {out_path}")
+
+# --------------------
+# Main Entry
+# --------------------
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--feeder', required=True)
+    parser.add_argument('--kategori', choices=['siang', 'malam'], required=True)
+    args = parser.parse_args()
+
+    feeder = args.feeder
+    kategori = args.kategori
+    logf = setup_logger(feeder, kategori)
+
+    try:
+        X, y = load_data(feeder, kategori)
+        model = train_lstm(X, y, logf)
+        evaluate_and_save(model, X, y, feeder, kategori, logf)
+        log(logf, "🎉 Training selesai tanpa error.")
+    except Exception as e:
+        log(logf, f"❌ ERROR: {str(e)}")
+    finally:
+        logf.close()
