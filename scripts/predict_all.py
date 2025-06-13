@@ -1,63 +1,75 @@
-"""
-predict_all.py v1.0
-
-Deskripsi:
------------
-Melakukan prediksi untuk seluruh penyulang yang tersedia:
-1. Prediksi seluruh data historis (menggunakan predict.py)
-2. Prediksi next-day (menggunakan predict_next.py)
-
-Output:
---------
-- Hasil batch prediksi: results/predict/{feeder}_{kategori}_pred.csv
-- Hasil prediksi next-day: results/predict/next_{feeder}_{kategori}.csv
-- Semua log disimpan di logs/predict/
-
-Author: Zaky Pradikto
-"""
+# ===================================================
+# PREDICT_ALL.PY v1.3
+# ---------------------------------------------------
+# Menjalankan prediksi hanya untuk penyulang yang:
+# (a) memiliki file .npz di data/npz/
+# (b) memiliki model .keras di models/single/
+# Hasil disimpan di results/predict/ dan log dicatat ke logs/predict/
+# ===================================================
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = '3'
+import time
 import subprocess
+from datetime import datetime
 
-# Path dasar
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-npz_dir = os.path.join(base_dir, 'data', 'npz')
+# --- Setup Log ---
+def setup_logger():
+    log_dir = os.path.join("logs", "predict")
+    os.makedirs(log_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path = os.path.join(log_dir, f"{ts}_predict_all.log")
+    return open(log_path, "a")
 
-# Ambil semua file .npz
-files = sorted([f for f in os.listdir(npz_dir) if f.endswith('.npz')])
-print(f"📂 Ditemukan {len(files)} file penyulang untuk diproses.\n")
+def log_print(msg, logfile):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    line = f"{timestamp} {msg}"
+    print(line)
+    logfile.write(line + "\n")
 
-# Loop semua penyulang
-for file in files:
-    feeder_kat = file.replace('.npz', '')
-    parts = feeder_kat.split('_')
-    feeder = '_'.join(parts[:-1])
-    kategori = parts[-1]
+# --- Main Function ---
+def main():
+    start = time.time()
+    logfile = setup_logger()
 
-    print(f"🔁 Memproses: {feeder}_{kategori}")
+    # Ambil semua file .npz dan .keras
+    npz_files = sorted([f.replace(".npz", "") for f in os.listdir("data/npz") if f.endswith(".npz")])
+    keras_files = sorted([f.replace(".keras", "") for f in os.listdir("models/single") if f.endswith(".keras")])
 
-    # 1. Prediksi seluruh data historis
-    try:
-        subprocess.run([
-            "python3", "scripts/predict.py",
-            "--feeder", feeder,
-            "--kategori", kategori
-        ], check=True)
-    except subprocess.CalledProcessError:
-        print(f"❌ Gagal prediksi historis {feeder}_{kategori}")
+    # Cari irisan antara .npz dan .keras
+    feeders_to_predict = sorted(set(npz_files).intersection(set(keras_files)))
 
-    # 2. Prediksi next-day
-    try:
-        subprocess.run([
-            "python3", "scripts/predict_next.py",
-            "--feeder", feeder,
-            "--kategori", kategori
-        ], check=True)
-    except subprocess.CalledProcessError:
-        print(f"❌ Gagal prediksi next-day {feeder}_{kategori}")
+    log_print(f"📂 Tersedia {len(feeders_to_predict)} penyulang untuk diprediksi.", logfile)
+    log_print("--------------------------------------------------------", logfile)
 
-    print("--------------------------------------")
+    for basename in feeders_to_predict:
+        try:
+            parts = basename.split("_")
+            feeder = "_".join(parts[:-1])
+            kategori = parts[-1]
 
-print("🎉 Semua prediksi selesai!")
+            log_print(f"🔁 Memproses: {feeder} ({kategori})", logfile)
+
+            result = subprocess.run([
+                "python3", "scripts/predict.py",
+                "--feeder", feeder,
+                "--kategori", kategori
+            ], capture_output=True, text=True)
+
+            # Cetak output predict.py ke log
+            log_print(result.stdout.strip(), logfile)
+            if result.stderr.strip():
+                log_print(f"⚠️ STDERR: {result.stderr.strip()}", logfile)
+
+        except Exception as e:
+            log_print(f"❌ Gagal memproses {basename}: {e}", logfile)
+        log_print("--------------------------------------------------------", logfile)
+
+    dur = time.time() - start
+    m, s = divmod(dur, 60)
+    log_print(f"🎉 Selesai memproses semua prediksi.", logfile)
+    log_print(f"🕒 Total waktu: {int(m)} menit {int(s)} detik", logfile)
+    log_print(f"📄 Log tersimpan di: {logfile.name}", logfile)
+    logfile.close()
+
+if __name__ == "__main__":
+    main()
