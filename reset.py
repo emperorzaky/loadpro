@@ -25,18 +25,18 @@ import shutil
 
 # Daftar folder yang akan dihapus isinya (bukan foldernya)
 targets = [
-    'data/npz',
     'data/metadata',
-    'models/single',
-    'models/tuning',
-    'results/predict',
-    'results/tuning',
+    'data/npz',
+    'logs/compare',
+    'logs/predict',
+    'logs/predict_next',
     'logs/preprocess',
     'logs/train',
-    'logs/predict',
     'logs/tuning',
-    'logs/compare',
-    'logs/validator'
+    'logs/validator',
+    'results/predict',
+    'results/predict_next',
+    'results/tuning',
 ]
 
 # Jalankan pembersihan

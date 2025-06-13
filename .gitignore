@@ -10,3 +10,4 @@ venv/
 *.pkl
 *.npz
 *.keras
+*.txt

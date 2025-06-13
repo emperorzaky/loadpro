@@ -1,84 +1,95 @@
 # ===================================================
-# predict_next.py v1.2
+# PREDICT_NEXT.PY v1.1
 # ---------------------------------------------------
-# Melakukan prediksi beban next-day untuk satu penyulang,
-# disertai dengan estimasi range ±5% sebagai rentang percaya diri.
-#
-# Output:
-# - Terminal: kalimat prediksi + range
-# - Log: logs/predict/YYYYMMDD_HHMM_predict_next_{feeder}_{kategori}.log
-# - CSV: results/predict/next_{feeder}_{kategori}.csv
+# Memprediksi beban H+1 berdasarkan window terakhir
+# dari hasil preprocessing (.npz dan scaler.pkl).
+# Tanggal H+1 diambil dari data raw CSV terakhir.
+# Hasil prediksi disimpan dalam bentuk deskriptif .txt
+# dan log proses di logs/predict/.
 # ===================================================
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import argparse
-import numpy as np
 import joblib
+import numpy as np
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from tensorflow.keras.models import load_model
 
-# Argument CLI
-parser = argparse.ArgumentParser()
-parser.add_argument('--feeder', required=True, help="Nama penyulang tanpa ekstensi")
-parser.add_argument('--kategori', required=True, choices=['siang', 'malam'], help="Kategori waktu")
-args = parser.parse_args()
+# --- Logging Setup ---
+def setup_logger(feeder, kategori):
+    log_dir = os.path.join("logs", "predict_next")
+    os.makedirs(log_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M")
+    log_name = f"{ts}_predict_next_{feeder}_{kategori}.log"
+    log_path = os.path.join(log_dir, log_name)
+    return open(log_path, "a"), log_path
 
-# Path
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-npz_path   = os.path.join(base_dir, 'data', 'npz', f"{args.feeder}_{args.kategori}.npz")
-pkl_path   = os.path.join(base_dir, 'data', 'metadata', f"{args.feeder}_{args.kategori}_scaler.pkl")
-model_path = os.path.join(base_dir, 'models', 'single', f"{args.feeder}_{args.kategori}.keras")
-log_dir    = os.path.join(base_dir, 'logs', 'predict')
-csv_dir    = os.path.join(base_dir, 'results', 'predict')
-os.makedirs(log_dir, exist_ok=True)
-os.makedirs(csv_dir, exist_ok=True)
+def log_print(msg, logfile):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    line = f"{timestamp} {msg}"
+    print(line)
+    logfile.write(line + "\n")
 
-# Validasi file
-for path in [npz_path, pkl_path, model_path]:
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Tidak ditemukan: {path}")
+# --- Main Function ---
+def main(feeder, kategori):
+    basename = f"{feeder}_{kategori}"
+    model_path = f"models/single/{basename}.keras"
+    npz_path = f"data/npz/{basename}.npz"
+    scaler_path = f"data/metadata/{basename}_scaler.pkl"
+    csv_path = f"data/raw/{feeder}.csv"
 
-# Load window terakhir
-data = np.load(npz_path)
-X = data['X']
-last_window = X[-1].reshape(1, X.shape[1], 1)
+    logfile, log_path = setup_logger(feeder, kategori)
 
-# Load model dan scaler
-scaler = joblib.load(pkl_path)
-model = load_model(model_path)
+    try:
+        log_print(f"📦 Memuat model: {model_path}", logfile)
+        model = load_model(model_path)
 
-# Prediksi
-y_pred_scaled = model.predict(last_window)
-y_pred_amp = scaler.inverse_transform(y_pred_scaled)[0][0]
-y_pred_amp = round(y_pred_amp, 2)
+        log_print(f"📊 Memuat data window terakhir dari: {npz_path}", logfile)
+        data = np.load(npz_path)
+        X = data['X']
+        x_input = X[-1].reshape(1, X.shape[1], X.shape[2])
 
-# Hitung range ±5%
-lower = round(y_pred_amp * 0.95, 2)
-upper = round(y_pred_amp * 1.05, 2)
+        log_print(f"🔄 Inverse transform hasil prediksi...", logfile)
+        scaler = joblib.load(scaler_path)
+        y_pred_scaled = model.predict(x_input).reshape(-1)[0]
+        y_pred = scaler.inverse_transform([[y_pred_scaled]])[0][0]
 
-# Format output
-summary = (
-    f"Prediksi beban {args.kategori} berikutnya untuk {args.feeder} adalah "
-    f"{y_pred_amp} A (range: {lower} - {upper} A)"
-)
-print(f"🔮 {summary}")
+        log_print(f"📅 Membaca tanggal terakhir dari: {csv_path}", logfile)
+        df_raw = pd.read_csv(csv_path)
+        df_raw = df_raw[df_raw['Waktu'] == kategori]
+        df_raw['Tanggal'] = pd.to_datetime(df_raw['Tanggal'], format='%m/%d/%Y')
+        last_date = df_raw['Tanggal'].max()
+        next_date = last_date + timedelta(days=1)
+        next_date_str = next_date.strftime('%A, %d %B %Y')
 
-# Simpan log
-now_str = datetime.now().strftime("%Y%m%d_%H%M")
-log_path = os.path.join(log_dir, f"{now_str}_predict_next_{args.feeder}_{args.kategori}.log")
-with open(log_path, 'w') as f:
-    f.write(summary + "\n")
+        output_dir = "results/predict_next"
+        os.makedirs(output_dir, exist_ok=True)
+        txt_path = os.path.join(output_dir, f"next_{basename}.txt")
 
-# Simpan CSV
-csv_path = os.path.join(csv_dir, f"next_{args.feeder}_{args.kategori}.csv")
-df = pd.DataFrame({
-    'feeder': [args.feeder],
-    'kategori': [args.kategori],
-    'y_pred': [f"{y_pred_amp} A"],
-    'range_min': [lower],
-    'range_max': [upper]
-})
-df.to_csv(csv_path, index=False)
+        with open(txt_path, "w") as f:
+            f.write(f"📈 Hasil Prediksi Beban H+1\n")
+            f.write(f"Penyulang : {feeder}\n")
+            f.write(f"Kategori : {kategori}\n")
+            f.write(f"Tanggal  : {next_date_str}\n")
+            f.write(f"Beban    : {y_pred:.2f} A\n")
+
+        log_print(f"✅ Prediksi beban H+1 = {y_pred:.2f} A", logfile)
+        log_print(f"📄 Hasil disimpan di: {txt_path}", logfile)
+        log_print(f"📝 Log tersimpan di: {log_path}", logfile)
+        log_print(f"🎉 Prediksi selesai untuk {feeder} ({kategori}).", logfile)
+    except Exception as e:
+        log_print(f"❌ Terjadi kesalahan: {e}", logfile)
+
+    logfile.close()
+
+# --- Entry Point ---
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="🔮 Prediksi beban H+1 dari window terakhir.")
+    parser.add_argument('--feeder', required=True, help='Nama penyulang tanpa ekstensi')
+    parser.add_argument('--kategori', required=True, choices=['siang', 'malam'], help='Kategori waktu')
+    args = parser.parse_args()
+
+    main(args.feeder, args.kategori)
