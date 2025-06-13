@@ -1,64 +1,81 @@
 # ===================================================
 # LOADPRO v2.0
 # ---------------------------------------------------
-# Pipeline otomatis: preprocess → train → compare →
-# predict → predict next, lalu buat summary.
+# Menjalankan seluruh pipeline: preprocess → train →
+# compare → predict → predict next day.
+# Akhirnya membuat summary file rekap beban H+1.
 # ===================================================
 
 import subprocess
 import time
-import os
 from datetime import datetime
+import os
+import re
+import csv
 
-def run_script(script_path):
-    result = subprocess.run(["python3", script_path])
-    return result.returncode == 0
+# Buat folder log jika belum ada
+os.makedirs("logs/loadpro", exist_ok=True)
+os.makedirs("rekap", exist_ok=True)
 
-def log_summary(summary_lines):
-    os.makedirs("logs/loadpro", exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    summary_file = f"logs/loadpro/{timestamp}_summary.log"
-    with open(summary_file, "w") as f:
-        for line in summary_lines:
-            f.write(line + "\n")
-    print(f"\n📄 Summary pipeline disimpan di: {summary_file}\n")
+start = time.time()
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+summary_log_path = f"logs/loadpro/{timestamp}_loadpro.log"
+rekap_path = "rekap/rekap_nextday.csv"
 
-if __name__ == "__main__":
-    start = time.time()
-    summary = []
+with open(summary_log_path, "w") as log:
+    def log_print(msg):
+        print(msg)
+        log.write(f"{datetime.now().strftime('[%Y-%m-%d %H:%M:%S]')} {msg}\n")
 
-    summary.append("🚀 LOADPRO v2.0 Pipeline Summary")
-    summary.append("----------------------------------------")
+    def run_script(name, args=[]):
+        log_print(f"🚀 Menjalankan {name}...")
+        result = subprocess.run(["python3", f"scripts/{name}.py"] + args, capture_output=True, text=True)
+        log_print(result.stdout)
+        if result.stderr:
+            log_print(result.stderr)
+        log_print("------------------------------------------------------------")
 
-    # Step 1: Preprocessing
-    summary.append("1️⃣  Menjalankan preprocessing...")
-    status = run_script("scripts/preprocess.py")
-    summary.append("    ✅ Selesai" if status else "    ❌ Gagal")
+    # Jalankan pipeline satu per satu
+    run_script("preprocess")
+    run_script("train_all")
+    run_script("compare_all")
+    run_script("predict_all")
+    run_script("predict_next_all")
 
-    # Step 2: Train All
-    summary.append("2️⃣  Menjalankan training semua model...")
-    status = run_script("scripts/train_all.py")
-    summary.append("    ✅ Selesai" if status else "    ❌ Gagal")
+    # Buat file rekap beban H+1 dari hasil .txt
+    log_print("📋 Membuat rekap prediksi beban H+1...")
+    result_dir = "results/predict_next"
+    rows = [("Tanggal", "Hari", "Penyulang", "Kategori", "Beban (A)")]
 
-    # Step 3: Compare All
-    summary.append("3️⃣  Membandingkan model sementara dengan model final...")
-    status = run_script("scripts/compare_all.py")
-    summary.append("    ✅ Selesai" if status else "    ❌ Gagal")
+    for fname in sorted(os.listdir(result_dir)):
+        if fname.endswith(".txt") and fname.startswith("next_"):
+            try:
+                with open(os.path.join(result_dir, fname), "r") as f:
+                    content = f.read()
 
-    # Step 4: Predict All
-    summary.append("4️⃣  Melakukan prediksi seluruh data historis...")
-    status = run_script("scripts/predict_all.py")
-    summary.append("    ✅ Selesai" if status else "    ❌ Gagal")
+                penyulang = re.search(r"Penyulang\s*:\s*(.+)", content).group(1).strip()
+                kategori = re.search(r"Kategori\s*:\s*(.+)", content).group(1).strip()
+                tanggal_str = re.search(r"Tanggal\s*:\s*(.+)", content).group(1).strip()
+                beban = re.search(r"Beban\s*:\s*([\d.]+)", content).group(1).strip()
 
-    # Step 5: Predict Next All
-    summary.append("5️⃣  Melakukan prediksi next day untuk semua penyulang...")
-    status = run_script("scripts/predict_next_all.py")
-    summary.append("    ✅ Selesai" if status else "    ❌ Gagal")
+                tanggal_dt = datetime.strptime(tanggal_str, "%A, %d %B %Y")
+                tanggal_fmt = tanggal_dt.strftime("%Y-%m-%d")
+                hari = tanggal_dt.strftime("%A")
 
-    # Duration
+                rows.append((tanggal_fmt, hari, penyulang, kategori, beban))
+
+            except Exception as e:
+                log_print(f"⚠️ Gagal membaca {fname}: {e}")
+                continue
+
+    with open(rekap_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+    log_print(f"✅ Rekap prediksi disimpan di: {rekap_path}")
+
+    # Total durasi
     dur = time.time() - start
     m, s = divmod(dur, 60)
-    summary.append("----------------------------------------")
-    summary.append(f"🕒 Total waktu eksekusi: {int(m)} menit {int(s)} detik")
-
-    log_summary(summary)
+    log_print(f"🎉 Pipeline selesai dalam {int(m)} menit {int(s)} detik.")
+    log_print(f"📄 Log lengkap: {summary_log_path}")

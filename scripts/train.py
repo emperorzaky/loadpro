@@ -72,7 +72,7 @@ def train_lstm(X, y, logf):
     log(logf, "🧠 Model compiled. Mulai training...")
 
     early_stop = keras.callbacks.EarlyStopping(monitor='loss', patience=5, restore_best_weights=True)
-    history = model.fit(X, y, epochs=50, batch_size=32, verbose=1, callbacks=[early_stop])
+    history = model.fit(X, y, epochs=50, batch_size=32, verbose=0, callbacks=[early_stop])
 
     log(logf, f"📉 Final Loss: {history.history['loss'][-1]:.4f}")
     log(logf, f"🛑 Early stopped after {len(history.history['loss'])} epochs")
