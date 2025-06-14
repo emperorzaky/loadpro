@@ -1,50 +1,53 @@
-# ===================================================
-# tuning.py v1.1
-# ---------------------------------------------------
-# LOADPRO | Hyperparameter Tuning Entry Point
-#
-# Deskripsi:
-# - Menjalankan tuning berdasarkan metode yang dipilih
-# - Mendukung modularisasi metode tuning (grid, random, bayesopt, dll)
-# - Menyimpan hasil tuning (.pkl + .keras) ke folder results/tuning/
-# - Menyimpan log stdout ke folder logs/tuning/
-# ===================================================
+# tuning.py v1.0
+# ------------------------------------------------------------
+# Entry-point utama untuk proses tuning hyperparameter LSTM
+# Argumen: --feeder, --kategori, --method
+# Memanggil metode tuning dari scripts/tuning/<method>_search.py
+# ------------------------------------------------------------
 
-import os
-import sys
 import argparse
+import time
+import os
 from datetime import datetime
 
-# Import fungsi tuning dari metode yang tersedia
-from tuning.bayesopt_search import run_bayesopt
+# Mapping metode ke modul
+METHOD_MAP = {
+    "bayesopt": "bayesopt_search",
+    # nanti bisa ditambah: "grid": "grid_search", dll
+}
 
-# Import utilitas umum
-from utils.load_dataset import load_dataset
-from utils.lstm_train_predict import train_and_evaluate_model
+def main():
+    parser = argparse.ArgumentParser(description="Tuning Hyperparameter LSTM untuk LOADPRO")
+    parser.add_argument("--feeder", type=str, required=True, help="Nama penyulang (tanpa ekstensi)")
+    parser.add_argument("--kategori", type=str, choices=["siang", "malam"], required=True, help="Kategori waktu")
+    parser.add_argument("--method", type=str, choices=METHOD_MAP.keys(), required=True, help="Metode tuning")
+    args = parser.parse_args()
 
-# Pastikan semua folder output tersedia
-os.makedirs("logs/tuning", exist_ok=True)
-os.makedirs("results/tuning", exist_ok=True)
+    feeder = args.feeder.lower()
+    kategori = args.kategori.lower()
+    method = args.method.lower()
 
-# Argument parsing
-parser = argparse.ArgumentParser()
-parser.add_argument("--feeder", type=str, required=True, help="Nama file penyulang (tanpa ekstensi)")
-parser.add_argument("--kategori", type=str, required=True, choices=["siang", "malam"])
-parser.add_argument("--method", type=str, default="bayesopt", choices=["bayesopt"], help="Metode tuning")
-args = parser.parse_args()
+    start_time = time.time()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Logging ke file
-timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-logfile = f"logs/tuning/{timestamp}_tuning_{args.method}.log"
-sys.stdout = open(logfile, "w")
+    print(f"\n🔧 Memulai tuning hyperparameter untuk {feeder} ({kategori})")
+    print(f"🕒 Waktu mulai: {now}")
+    print(f"⚙️  Metode: {method}\n")
 
-print(f"📌 Tuning dimulai untuk penyulang: {args.feeder} [{args.kategori}] menggunakan metode {args.method}")
+    # Path ke file tuning
+    try:
+        module_name = METHOD_MAP[method]
+        tuning_module = __import__(f"scripts.tuning.{module_name}", fromlist=["run_tuning"])
+        tuning_module.run_tuning(feeder, kategori)
+    except Exception as e:
+        print(f"❌ Terjadi kesalahan saat menjalankan metode '{method}': {e}")
+        return
 
-# Load data
-X, y = load_dataset(args.feeder, args.kategori)
+    total_time = time.time() - start_time
+    minutes = int(total_time // 60)
+    seconds = int(total_time % 60)
+    print(f"\n✅ Tuning selesai untuk {feeder} ({kategori})")
+    print(f"🕒 Total durasi: {minutes} menit {seconds} detik\n")
 
-# Jalankan metode tuning yang dipilih
-if args.method == "bayesopt":
-    run_bayesopt(X, y, args.feeder, args.kategori)
-
-print("✅ Tuning selesai.")
+if __name__ == "__main__":
+    main()
