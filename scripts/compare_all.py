@@ -1,13 +1,10 @@
 # ===================================================
-# COMPARE_ALL.PY v1.1
+# COMPARE_ALL.PY v1.2
 # ---------------------------------------------------
-# Membandingkan seluruh model di models/temporary/    
+# Membandingkan seluruh model di models/temporary/
 # dengan model final di models/single/, lalu memilih
 # yang terbaik berdasarkan RMSE validasi.
-#
-# Model terbaik -> disimpan ke models/single/
-# Model kalah   -> dihapus dari models/temporary/
-# Log dicatat ke logs/compare/
+# Hanya memproses model yang memiliki data .npz & scaler.
 # ===================================================
 # python3 scripts/compare_all.py
 
@@ -40,6 +37,13 @@ def main():
                 feeder = "_".join(parts[:-1])
                 kategori = parts[-1]
 
+                npz_path = f"data/npz/{feeder}_{kategori}.npz"
+                pkl_path = f"data/metadata/{feeder}_{kategori}_scaler.pkl"
+
+                if not os.path.exists(npz_path) or not os.path.exists(pkl_path):
+                    log(f"⚠️  Lewati {feeder}_{kategori} karena data .npz atau scaler tidak ditemukan.")
+                    continue
+
                 log(f"🔬 Membandingkan: {feeder} ({kategori})")
                 cmd = ["python3", "scripts/compare.py", "--feeder", feeder, "--kategori", kategori]
                 subprocess.run(cmd, check=True)
@@ -53,7 +57,6 @@ def main():
         log(f"🎉 Selesai membandingkan semua model sementara.")
         log(f"🕒 Total waktu: {int(m)} menit {int(s)} detik")
         log(f"📄 Log tersimpan di: {log_path}")
-
 
 if __name__ == "__main__":
     main()
